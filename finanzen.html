@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Finanzen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="app">
+<main class="main">
+
+  <!-- Jahresvergleich -->
+  <h2 class="section-title">Jahresvergleich (3 Jahre + laufendes Jahr)</h2>
+  <div class="grid grid-2 mb-20">
+    <div class="card">
+      <div class="card-header">
+        <h2>Umsatz · Kosten · EÜ/Gewinn</h2>
+        <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('BuHa-Auswertungen automatisch aus HiDrive einlesen (PDF-Parsing)')">HiDrive einlesen</button>
+      </div>
+      <div class="chart-box"><canvas id="chart-jahresvergleich"></canvas></div>
+      <div id="src-jahre" style="margin-top:12px"></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h2>Übersicht als Tabelle</h2></div>
+      <div class="table-wrap"><table class="kk-table" id="tbl-jahre"></table></div>
+      <h3 style="margin:24px 0 10px">Monatsverlauf 2026</h3>
+      <div class="chart-box chart-sm"><canvas id="chart-monate"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Ausstehende Rechnungen -->
+  <h2 class="section-title">Ausstehende Rechnungssummen</h2>
+  <div class="grid grid-2 mb-20">
+    <div class="card">
+      <div class="card-header">
+        <h2>Offene Rechnungen (versendet)</h2>
+        <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('Offene Posten live aus Evidenz / Buchhaltung abrufen')">Aus Evidenz abrufen</button>
+      </div>
+      <div class="table-wrap"><table class="kk-table" id="tbl-offene"></table></div>
+      <div id="src-offene" style="margin-top:10px"></div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <h2>Geplante Rechnungen (noch nicht abgerechnet)</h2>
+        <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('Umsatzplanung (Excel) aus HiDrive synchronisieren')">Excel-Sync</button>
+      </div>
+      <div class="table-wrap"><table class="kk-table" id="tbl-geplante"></table></div>
+      <div id="src-geplante" style="margin-top:10px"></div>
+    </div>
+  </div>
+
+  <!-- Fixkosten -->
+  <h2 class="section-title">Anstehende Kosten</h2>
+  <div class="grid grid-2 mb-20">
+    <div class="card">
+      <div class="card-header">
+        <h2>Fixkosten + variable Kosten (Juni)</h2>
+        <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('Variable Kosten automatisch aus Belegungsliste berechnen')">Belegungsliste laden</button>
+      </div>
+      <div class="table-wrap"><table class="kk-table" id="tbl-fixkosten"></table></div>
+    </div>
+
+    <!-- Liquidität -->
+    <div class="card">
+      <div class="card-header">
+        <h2>Liquidität & Forecast</h2>
+        <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('Bankdaten abrufen – aktueller Kontostand & Umsätze via Banking-API (z. B. FinAPI)')">Bankdaten abrufen</button>
+      </div>
+      <div class="flex-between mb-20">
+        <div>
+          <div class="kpi-label" style="font-size:0.8rem;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--kk-gray)">Aktueller Kontostand</div>
+          <div style="font-size:2rem;font-weight:700;color:var(--kk-dark)" id="kontostand"></div>
+        </div>
+        <span class="badge badge-green" id="liq-status"></span>
+      </div>
+      <div class="chart-box chart-sm"><canvas id="chart-liquiditaet"></canvas></div>
+      <p class="muted" style="margin-top:10px">Forecast über das Jahr: Kontostand + geplante Eingänge − Fixkosten/variable Kosten. Gestrichelte Linie = Minimum-Schwelle.</p>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+kkShell({ title: 'Finanzen', subtitle: 'Jahresvergleich · Offene Posten · Fixkosten · Liquidität' });
+kkChartDefaults();
+const F = KK.finanzen;
+
+/* Quellen */
+document.getElementById('src-jahre').innerHTML =
+  srcTag('HiDrive: 2.1_GF\\FINANZEN\\Buchhaltungsauswertungen') + srcTag('2.1_GF\\FINANZEN\\Umsatzplanung');
+document.getElementById('src-offene').innerHTML = srcTag('Evidenz: offene Rechnungen');
+document.getElementById('src-geplante').innerHTML = srcTag('Umsatzplanung: „Noch nicht abgerechnet“');
+
+/* Jahresvergleich Chart + Tabelle */
+new Chart(document.getElementById('chart-jahresvergleich'), {
+  type: 'bar',
+  data: {
+    labels: F.jahresvergleich.map(j => j.jahr),
+    datasets: [
+      { label: 'Umsatz', data: F.jahresvergleich.map(j => j.umsatz), backgroundColor: KK_COLORS.orange, borderRadius: 6 },
+      { label: 'Kosten', data: F.jahresvergleich.map(j => j.kosten), backgroundColor: KK_COLORS.gray, borderRadius: 6 },
+      { label: 'EÜ / Gewinn', data: F.jahresvergleich.map(j => j.gewinn), backgroundColor: KK_COLORS.green, borderRadius: 6 }
+    ]
+  },
+  options: { maintainAspectRatio: false, scales: { y: { ticks: { callback: v => (v / 1000) + ' T€' } } } }
+});
+
+document.getElementById('tbl-jahre').innerHTML =
+  '<thead><tr><th>Jahr</th><th class="num">Umsatz</th><th class="num">Kosten</th><th class="num">EÜ/Gewinn</th><th class="num">Marge</th></tr></thead><tbody>' +
+  F.jahresvergleich.map(j => `<tr>
+    <td><strong>${j.jahr}</strong></td>
+    <td class="num">${fmtEUR(j.umsatz)}</td>
+    <td class="num">${fmtEUR(j.kosten)}</td>
+    <td class="num"><strong>${fmtEUR(j.gewinn)}</strong></td>
+    <td class="num">${fmtPct(j.gewinn / j.umsatz * 100)}</td>
+  </tr>`).join('') + '</tbody>';
+
+/* Monatsverlauf 2026 */
+new Chart(document.getElementById('chart-monate'), {
+  type: 'line',
+  data: {
+    labels: F.monatsumsatz2026.labels,
+    datasets: [
+      { label: 'Umsatz', data: F.monatsumsatz2026.umsatz, borderColor: KK_COLORS.orange, backgroundColor: 'rgba(228,122,61,0.12)', fill: true, tension: 0.35 },
+      { label: 'Kosten', data: F.monatsumsatz2026.kosten, borderColor: KK_COLORS.gray, tension: 0.35 }
+    ]
+  },
+  options: { maintainAspectRatio: false, scales: { y: { ticks: { callback: v => (v / 1000) + ' T€' } } } }
+});
+
+/* Offene Rechnungen */
+const sumOffen = F.offeneRechnungen.reduce((s, r) => s + r.betrag, 0);
+document.getElementById('tbl-offene').innerHTML =
+  '<thead><tr><th>Nr.</th><th>Kunde</th><th class="num">Betrag</th><th>Fällig</th><th>Status</th></tr></thead><tbody>' +
+  F.offeneRechnungen.map(r => `<tr>
+    <td>${r.nr}</td>
+    <td><strong>${r.kunde}</strong><br><span class="muted">Rechnungsdatum ${r.datum}</span></td>
+    <td class="num">${fmtEUR(r.betrag)}</td>
+    <td>${r.faellig}</td>
+    <td>${r.tageUeberfaellig > 0
+      ? '<span class="badge badge-red">' + r.tageUeberfaellig + ' Tage überfällig</span>'
+      : '<span class="badge badge-green">im Rahmen</span>'}</td>
+  </tr>`).join('') +
+  `</tbody><tfoot><tr><td colspan="2">Summe offen</td><td class="num">${fmtEUR(sumOffen)}</td><td colspan="2">${F.offeneRechnungen.length} Rechnungen</td></tr></tfoot>`;
+
+/* Geplante Rechnungen */
+const sumGeplant = F.geplanteRechnungen.reduce((s, r) => s + r.betrag, 0);
+document.getElementById('tbl-geplante').innerHTML =
+  '<thead><tr><th>Kunde / Leistung</th><th class="num">Betrag</th><th>Geplant zum</th></tr></thead><tbody>' +
+  F.geplanteRechnungen.map(r => `<tr>
+    <td><strong>${r.kunde}</strong><br><span class="muted">${r.leistung}</span></td>
+    <td class="num">${fmtEUR(r.betrag)}</td>
+    <td>${r.geplant}</td>
+  </tr>`).join('') +
+  `</tbody><tfoot><tr><td>Summe geplant</td><td class="num">${fmtEUR(sumGeplant)}</td><td>${F.geplanteRechnungen.length} Positionen</td></tr></tfoot>`;
+
+/* Fixkosten */
+const sumFix = F.fixkosten.filter(k => k.art === 'fix').reduce((s, k) => s + k.betrag, 0);
+const sumVar = F.fixkosten.filter(k => k.art === 'variabel').reduce((s, k) => s + k.betrag, 0);
+document.getElementById('tbl-fixkosten').innerHTML =
+  '<thead><tr><th>Posten</th><th class="num">Betrag / Monat</th><th>Fälligkeit</th><th>Art</th></tr></thead><tbody>' +
+  F.fixkosten.map(k => `<tr>
+    <td><strong>${k.posten}</strong></td>
+    <td class="num">${fmtEUR(k.betrag)}</td>
+    <td>${k.faellig}</td>
+    <td><span class="badge ${k.art === 'fix' ? 'badge-gray' : 'badge-orange'}">${k.art}</span></td>
+  </tr>`).join('') +
+  `</tbody><tfoot>
+    <tr><td>Fixkosten gesamt</td><td class="num">${fmtEUR(sumFix)}</td><td colspan="2">monatlich</td></tr>
+    <tr><td>Variable Kosten (Juni, aus Belegungsliste)</td><td class="num">${fmtEUR(sumVar)}</td><td colspan="2">einsatzabhängig</td></tr>
+    <tr><td>Gesamt anstehend (Juni)</td><td class="num">${fmtEUR(sumFix + sumVar)}</td><td colspan="2"></td></tr>
+  </tfoot>`;
+
+/* Liquidität */
+document.getElementById('kontostand').textContent = fmtEUR(F.liquiditaet.kontostand);
+document.getElementById('liq-status').textContent = 'über Minimum (' + fmtEUR(F.liquiditaet.forecast.minimum) + ')';
+new Chart(document.getElementById('chart-liquiditaet'), {
+  type: 'line',
+  data: {
+    labels: F.liquiditaet.forecast.labels,
+    datasets: [
+      { label: 'Liquiditäts-Forecast', data: F.liquiditaet.forecast.werte, borderColor: KK_COLORS.orange, backgroundColor: 'rgba(228,122,61,0.12)', fill: true, tension: 0.35 },
+      { label: 'Minimum', data: F.liquiditaet.forecast.labels.map(() => F.liquiditaet.forecast.minimum), borderColor: KK_COLORS.red, borderDash: [6, 6], pointRadius: 0 }
+    ]
+  },
+  options: { maintainAspectRatio: false, scales: { y: { ticks: { callback: v => (v / 1000) + ' T€' } } } }
+});
+</script>
+</body>
+</html>

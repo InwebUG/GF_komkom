@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Berichte & Export</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<div class="app">
+<main class="main">
+
+  <div class="card mb-20">
+    <div class="card-header">
+      <h2>Verfügbare Berichte</h2>
+      <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('Berichtsgenerator: Zeitraum & Module frei wählbar')">+ Neuer Bericht</button>
+    </div>
+    <div class="table-wrap"><table class="kk-table" id="tbl-berichte"></table></div>
+  </div>
+
+  <div class="grid grid-2 mb-20">
+    <div class="card">
+      <div class="card-header"><h2>Automatischer Versand</h2></div>
+      <p style="margin-bottom:14px">Berichte können später automatisch erstellt und versendet werden:</p>
+      <div class="table-wrap"><table class="kk-table">
+        <thead><tr><th>Bericht</th><th>Rhythmus</th><th>Empfänger</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Monatsbericht</strong></td><td>1. des Monats, 7:00</td><td>GF</td></tr>
+          <tr><td><strong>Quartalsbericht</strong></td><td>5 Tage nach Quartalsende</td><td>GF, Steuerberatung</td></tr>
+          <tr><td><strong>Liquiditäts-Kurzreport</strong></td><td>wöchentlich, Montag</td><td>GF, Buchhaltung</td></tr>
+        </tbody>
+      </table></div>
+      <button class="btn btn-sm btn-impl" style="margin-top:14px" onclick="wirdImplementiert('Automatischer Berichtsversand per E-Mail (PDF-Anhang)')">Versand aktivieren</button>
+    </div>
+    <div class="card">
+      <div class="card-header"><h2>Druck & Schnell-Export</h2></div>
+      <p style="margin-bottom:14px">Jede Modulseite ist druckoptimiert – über den Browser kann jederzeit ein PDF erzeugt werden (Navigation und Buttons werden ausgeblendet).</p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <button class="btn btn-sm" onclick="window.print()">Diese Seite drucken / als PDF</button>
+        <button class="btn btn-sm btn-outline btn-impl" onclick="wirdImplementiert('Gestalteter PDF-Export im KomKom-Design mit Logo & Deckblatt')">PDF-Export (Design)</button>
+        <button class="btn btn-sm btn-outline btn-impl" onclick="wirdImplementiert('Excel-Export aller Tabellen (XLSX)')">Excel-Export</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h2>Berichtsinhalt (Vorschau Monatsbericht Mai 2026)</h2></div>
+    <div class="table-wrap"><table class="kk-table">
+      <thead><tr><th>Abschnitt</th><th>Kennzahlen</th></tr></thead>
+      <tbody>
+        <tr><td><strong>1. Finanzen</strong></td><td>Umsatz 62.100 € · Kosten 46.200 € · EÜ 15.900 € · offene Posten 48.700 €</td></tr>
+        <tr><td><strong>2. Teilnehmer</strong></td><td>147 aktiv · 9 Abschlüsse · 12 Starts · 712 TN-Tage</td></tr>
+        <tr><td><strong>3. Trainings</strong></td><td>19 Trainingstage · No-Show 4,2 % · Ø Auslastung 10,3 TN</td></tr>
+        <tr><td><strong>4. Akquise</strong></td><td>5 Anfragen · 4 Angebote (84.500 €) · 2 Auftragsbestätigungen</td></tr>
+        <tr><td><strong>5. Soll/Ist</strong></td><td>Umsatz 93 % vom anteiligen Ziel · TN 92 % · Trainingstage 89 %</td></tr>
+      </tbody>
+    </table></div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:16px">
+      <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('Monatsbericht Mai 2026 als PDF generieren')">Als PDF</button>
+      <button class="btn btn-sm btn-outline btn-impl" onclick="wirdImplementiert('Monatsbericht Mai 2026 als Excel generieren')">Als Excel</button>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+kkShell({ title: 'Berichte & Export', subtitle: 'Monats-, Quartals- und Jahresberichte · PDF & Excel' });
+
+document.getElementById('tbl-berichte').innerHTML =
+  '<thead><tr><th>Bericht</th><th>Typ</th><th>Inhalt</th><th>Stand</th><th>Export</th></tr></thead><tbody>' +
+  KK.berichte.map(b => `<tr>
+    <td><strong>${b.name}</strong></td>
+    <td><span class="badge badge-orange">${b.typ}</span></td>
+    <td>${b.inhalt}</td>
+    <td>${b.stand}</td>
+    <td style="white-space:nowrap">
+      <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('${b.name} als PDF exportieren')">PDF</button>
+      <button class="btn btn-sm btn-outline btn-impl" onclick="wirdImplementiert('${b.name} als Excel exportieren')">XLSX</button>
+    </td>
+  </tr>`).join('') + '</tbody>';
+</script>
+</body>
+</html>

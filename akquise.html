@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Akquise</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="app">
+<main class="main">
+
+  <div class="grid grid-4 mb-20" id="kpi-akquise"></div>
+
+  <div class="grid grid-2 mb-20">
+    <div class="card">
+      <div class="card-header"><h2>Akquise-Funnel (letzte 90 Tage)</h2></div>
+      <div class="chart-box chart-sm"><canvas id="chart-funnel"></canvas></div>
+      <p class="muted" style="margin-top:10px">Quelle laut Anforderung: „TR?“ – Datenquelle für Akquise ist noch zu klären (siehe Einstellungen → Datenquellen).</p>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <h2>Neue Anfragen</h2>
+        <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('Anfragen automatisch aus Website-Formular & E-Mail-Postfach erfassen')">Auto-Erfassung</button>
+      </div>
+      <div class="table-wrap"><table class="kk-table" id="tbl-anfragen"></table></div>
+    </div>
+  </div>
+
+  <div class="card mb-20">
+    <div class="card-header">
+      <h2>Angebote verschickt</h2>
+      <div>
+        <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('Angebot erstellen mit Vorlagen & Preiskalkulation (TN × Module)')">+ Neues Angebot</button>
+        <button class="btn btn-sm btn-outline btn-impl" onclick="wirdImplementiert('Automatische Nachfass-Erinnerungen für offene Angebote')">Nachfassen</button>
+      </div>
+    </div>
+    <div class="table-wrap"><table class="kk-table" id="tbl-angebote"></table></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h2>Auftragsbestätigungen</h2>
+      <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('Auftrag direkt als Gruppe/Maßnahme in Evidenz anlegen')">In Evidenz übernehmen</button>
+    </div>
+    <div class="table-wrap"><table class="kk-table" id="tbl-auftraege"></table></div>
+  </div>
+
+</main>
+</div>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+kkShell({ title: 'Akquise', subtitle: 'Anfragen · Angebote · Auftragsbestätigungen' });
+kkChartDefaults();
+const A = KK.akquise;
+
+const sumAngebote = A.angebote.reduce((s, a) => s + a.summe, 0);
+const sumAuftraege = A.auftragsbestaetigungen.reduce((s, a) => s + a.summe, 0);
+
+document.getElementById('kpi-akquise').innerHTML = `
+  <div class="kpi">
+    <div class="kpi-label">Offene Anfragen</div>
+    <div class="kpi-value">${A.anfragen.length}</div>
+    <div class="kpi-sub">neueste vom ${A.anfragen[A.anfragen.length - 1].eingang}</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Angebote offen</div>
+    <div class="kpi-value">${A.angebote.length}</div>
+    <div class="kpi-sub">Volumen ${fmtEUR(sumAngebote)}</div>
+  </div>
+  <div class="kpi kpi-green">
+    <div class="kpi-label">Aufträge bestätigt (90 T.)</div>
+    <div class="kpi-value">${A.auftragsbestaetigungen.length}</div>
+    <div class="kpi-sub">Volumen ${fmtEUR(sumAuftraege)}</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Abschlussquote</div>
+    <div class="kpi-value">${fmtPct(A.funnel.auftraege / A.funnel.angebote * 100)}</div>
+    <div class="kpi-sub">Aufträge / Angebote (${A.funnel.zeitraum})</div>
+  </div>`;
+
+/* Funnel als horizontales Balkendiagramm */
+new Chart(document.getElementById('chart-funnel'), {
+  type: 'bar',
+  data: {
+    labels: ['Anfragen', 'Angebote', 'Aufträge'],
+    datasets: [{
+      data: [A.funnel.anfragen, A.funnel.angebote, A.funnel.auftraege],
+      backgroundColor: [KK_COLORS.orangeLight, KK_COLORS.orange, KK_COLORS.green],
+      borderRadius: 8
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: { x: { ticks: { precision: 0 } } }
+  }
+});
+
+document.getElementById('tbl-anfragen').innerHTML =
+  '<thead><tr><th>Interessent</th><th>Thema</th><th>Eingang</th><th>Kanal</th></tr></thead><tbody>' +
+  A.anfragen.map(a => `<tr>
+    <td><strong>${a.kunde}</strong></td>
+    <td>${a.thema}</td>
+    <td>${a.eingang}</td>
+    <td><span class="badge badge-gray">${a.kanal}</span></td>
+  </tr>`).join('') + '</tbody>';
+
+const statusBadge = (s) => ({
+  neu: '<span class="badge badge-orange">neu</span>',
+  offen: '<span class="badge badge-yellow">offen</span>',
+  nachgefasst: '<span class="badge badge-gray">nachgefasst</span>'
+}[s] || s);
+
+document.getElementById('tbl-angebote').innerHTML =
+  '<thead><tr><th>Kunde</th><th>Produkt</th><th class="num">TN</th><th class="num">Module</th><th class="num">Summe</th><th>Versendet</th><th>Status</th></tr></thead><tbody>' +
+  A.angebote.map(a => `<tr>
+    <td><strong>${a.kunde}</strong></td>
+    <td>${a.produkt}</td>
+    <td class="num">${a.tn}</td>
+    <td class="num">${a.module}</td>
+    <td class="num">${fmtEUR(a.summe)}</td>
+    <td>${a.datum}</td>
+    <td>${statusBadge(a.status)}</td>
+  </tr>`).join('') +
+  `</tbody><tfoot><tr><td colspan="4">Summe (${A.angebote.length} Angebote)</td><td class="num">${fmtEUR(sumAngebote)}</td><td colspan="2"></td></tr></tfoot>`;
+
+document.getElementById('tbl-auftraege').innerHTML =
+  '<thead><tr><th>Kunde</th><th>Produkt</th><th class="num">TN</th><th class="num">Summe</th><th>Bestätigt am</th><th>Start</th></tr></thead><tbody>' +
+  A.auftragsbestaetigungen.map(a => `<tr>
+    <td><strong>${a.kunde}</strong></td>
+    <td>${a.produkt}</td>
+    <td class="num">${a.tn}</td>
+    <td class="num">${fmtEUR(a.summe)}</td>
+    <td>${a.datum}</td>
+    <td><span class="badge badge-green">${a.start}</span></td>
+  </tr>`).join('') +
+  `</tbody><tfoot><tr><td colspan="3">Summe (${A.auftragsbestaetigungen.length} Aufträge)</td><td class="num">${fmtEUR(sumAuftraege)}</td><td colspan="2"></td></tr></tfoot>`;
+</script>
+</body>
+</html>

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alerts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<div class="app">
+<main class="main">
+
+  <div class="grid grid-2 mb-20">
+    <div class="card">
+      <div class="card-header">
+        <h2>Aktuelle Hinweise</h2>
+        <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('Alerts als gelesen markieren / quittieren mit Verlauf')">Alle quittieren</button>
+      </div>
+      <div id="alert-liste"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2>Schwellenwerte</h2>
+        <span class="hint">Im Prototyp ohne Speicherung</span>
+      </div>
+      <div id="schwellen-liste"></div>
+      <button class="btn btn-impl" style="margin-top:14px" onclick="wirdImplementiert('Schwellenwerte speichern & laufend gegen Live-Daten prüfen')">Schwellenwerte speichern</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h2>Benachrichtigungskanäle</h2></div>
+    <p style="margin-bottom:16px">Wo sollen Alerts später ankommen?</p>
+    <div class="table-wrap"><table class="kk-table" id="tbl-kanaele"></table></div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:16px">
+      <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('E-Mail-Benachrichtigungen (täglicher Digest + Sofortalarm bei rot)')">E-Mail einrichten</button>
+      <button class="btn btn-sm btn-impl btn-outline" onclick="wirdImplementiert('Push-Benachrichtigung aufs Handy (PWA)')">Push einrichten</button>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+kkShell({ title: 'Alerts', subtitle: 'Warnsystem mit Schwellenwerten für kritische Kennzahlen' });
+
+/* Alert-Liste */
+const stufenBadge = { red: 'badge-red', yellow: 'badge-yellow', green: 'badge-green' };
+const stufenText = { red: 'Kritisch', yellow: 'Beobachten', green: 'OK' };
+document.getElementById('alert-liste').innerHTML = KK.alerts.aktuelle.map(a => `
+  <div class="alert-item alert-${a.stufe}">
+    <div style="flex:1">
+      <div class="flex-between">
+        <div class="alert-title">${a.titel}</div>
+        <span class="badge ${stufenBadge[a.stufe]}">${stufenText[a.stufe]}</span>
+      </div>
+      <div class="alert-meta">${a.detail}</div>
+      <div class="alert-meta">${a.zeit} · <a href="${a.modul}">Zum Modul</a></div>
+    </div>
+  </div>`).join('');
+
+/* Schwellenwerte */
+document.getElementById('schwellen-liste').innerHTML = KK.alerts.schwellen.map(s => `
+  <div class="form-row" style="border-bottom:1px solid var(--kk-border);padding-bottom:12px">
+    <label style="flex:1;min-width:200px">${s.label}</label>
+    <input type="number" value="${s.wert}" style="width:110px;min-width:110px">
+    <span style="min-width:46px">${s.einheit}</span>
+    <label class="toggle"><input type="checkbox" ${s.aktiv ? 'checked' : ''}><span class="slider"></span></label>
+  </div>`).join('');
+
+/* Kanäle */
+document.getElementById('tbl-kanaele').innerHTML = `
+  <thead><tr><th>Kanal</th><th>Empfänger</th><th>Auslöser</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Dashboard</strong> (diese Seite)</td><td>alle Benutzer</td><td>alle Stufen</td><td><span class="badge badge-green">aktiv</span></td></tr>
+    <tr><td><strong>E-Mail-Digest</strong> (täglich 7:00)</td><td>gf@kompetenzkompanie.de</td><td>gelb + rot</td><td><span class="badge badge-gray">wird implementiert</span></td></tr>
+    <tr><td><strong>E-Mail sofort</strong></td><td>gf@kompetenzkompanie.de</td><td>nur rot</td><td><span class="badge badge-gray">wird implementiert</span></td></tr>
+    <tr><td><strong>Push (Handy)</strong></td><td>GF</td><td>nur rot</td><td><span class="badge badge-gray">wird implementiert</span></td></tr>
+  </tbody>`;
+</script>
+</body>
+</html>

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="app">
+<main class="main">
+
+  <!-- KPI-Reihe 1: Finanzen -->
+  <div class="grid grid-4 mb-20" id="kpi-finanzen"></div>
+
+  <!-- KPI-Reihe 2: Betrieb -->
+  <div class="grid grid-4 mb-20" id="kpi-betrieb"></div>
+
+  <div class="grid grid-2 mb-20">
+    <div class="card">
+      <div class="card-header">
+        <h2>Umsatz – Jahresvergleich</h2>
+        <a href="finanzen.html" class="btn btn-outline btn-sm">Zum Modul</a>
+      </div>
+      <div class="chart-box"><canvas id="chart-jahre"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <h2>Ziele 2026 – Soll/Ist</h2>
+        <a href="forecast.html" class="btn btn-outline btn-sm">Zum Modul</a>
+      </div>
+      <div id="ziele-widget"></div>
+    </div>
+  </div>
+
+  <div class="grid grid-2 mb-20">
+    <div class="card">
+      <div class="card-header">
+        <h2>Aktuelle Hinweise</h2>
+        <a href="alerts.html" class="btn btn-outline btn-sm">Alle Alerts</a>
+      </div>
+      <div id="alerts-widget"></div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <h2>Nächste Trainings</h2>
+        <a href="trainings.html" class="btn btn-outline btn-sm">Zum Modul</a>
+      </div>
+      <div class="table-wrap">
+        <table class="kk-table" id="tbl-trainings"></table>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h2>Datenaktualisierung</h2>
+      <span class="hint">Im Prototyp ohne Funktion</span>
+    </div>
+    <p style="margin-bottom:16px">Später werden hier die Quellsysteme live abgefragt. Die Buttons zeigen die spätere Funktion:</p>
+    <div style="display:flex;gap:12px;flex-wrap:wrap">
+      <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('Bankdaten abrufen (Kontostand & Umsätze via Banking-API)')">Bankdaten abrufen</button>
+      <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('Evidenz-Synchronisation (Teilnehmer, Trainings, No-Shows)')">Evidenz synchronisieren</button>
+      <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('HiDrive-Auswertungen einlesen (BuHa-PDFs & Umsatzplanung)')">HiDrive einlesen</button>
+      <button class="btn btn-sm btn-impl btn-dark" onclick="wirdImplementiert('Komplett-Aktualisierung aller Datenquellen')">Alles aktualisieren</button>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+kkShell({ title: 'Dashboard', subtitle: 'Zukunftssicherung & Steuerung der aktuellen Aktivitäten · Stand ' + KK.meta.stand });
+kkChartDefaults();
+
+const F = KK.finanzen, T = KK.teilnehmer, TR = KK.trainings, Z = KK.ziele2026;
+const j26 = F.jahresvergleich[3], j25 = F.jahresvergleich[2];
+
+/* KPI-Reihe Finanzen */
+const ueberfaellig = F.offeneRechnungen.filter(r => r.tageUeberfaellig > 0);
+const sumOffen = F.offeneRechnungen.reduce((s, r) => s + r.betrag, 0);
+document.getElementById('kpi-finanzen').innerHTML = `
+  <div class="kpi">
+    <div class="kpi-label">Umsatz 2026 (YTD)</div>
+    <div class="kpi-value">${fmtEUR(j26.umsatz)}</div>
+    <div class="kpi-sub">Vorjahr gesamt: ${fmtEUR(j25.umsatz)}</div>
+  </div>
+  <div class="kpi kpi-green">
+    <div class="kpi-label">EÜ / Gewinn (YTD)</div>
+    <div class="kpi-value">${fmtEUR(j26.gewinn)}</div>
+    <div class="kpi-sub"><span class="kpi-trend trend-up">▲ Marge ${fmtPct(j26.gewinn / j26.umsatz * 100)}</span></div>
+  </div>
+  <div class="kpi ${ueberfaellig.length ? 'kpi-red' : 'kpi-green'}">
+    <div class="kpi-label">Offene Rechnungen</div>
+    <div class="kpi-value">${fmtEUR(sumOffen)}</div>
+    <div class="kpi-sub">${F.offeneRechnungen.length} Rechnungen · ${ueberfaellig.length} überfällig</div>
+  </div>
+  <div class="kpi kpi-green">
+    <div class="kpi-label">Liquidität (Kontostand)</div>
+    <div class="kpi-value">${fmtEUR(F.liquiditaet.kontostand)}</div>
+    <div class="kpi-sub">Stand ${F.liquiditaet.kontostandDatum} · Min-Schwelle ${fmtEUR(F.liquiditaet.forecast.minimum)}</div>
+  </div>`;
+
+/* KPI-Reihe Betrieb */
+document.getElementById('kpi-betrieb').innerHTML = `
+  <div class="kpi">
+    <div class="kpi-label">TN in Ausbildung</div>
+    <div class="kpi-value">${fmtNum(T.aktuellInAusbildung)}</div>
+    <div class="kpi-sub">${T.baldFertig} bald fertig (1 Modul) · ${T.beginnAnstehend.reduce((s, g) => s + g.tn, 0)} starten demnächst</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Trainingstage 2026</div>
+    <div class="kpi-value">${TR.tageAbsolviert} <span style="font-size:1rem;font-weight:400;color:var(--kk-gray)">/ ${TR.tageAbsolviert + TR.tageGeplant}</span></div>
+    <div class="kpi-sub">absolviert / inkl. geplant</div>
+  </div>
+  <div class="kpi ${TR.noShow.jahr > Z.noShowMax.ziel ? 'kpi-yellow' : 'kpi-green'}">
+    <div class="kpi-label">No-Show-Rate</div>
+    <div class="kpi-value">${fmtPct(TR.noShow.monat)}</div>
+    <div class="kpi-sub">Monat · Jahr: ${fmtPct(TR.noShow.jahr)} (Ziel ≤ ${fmtPct(Z.noShowMax.ziel)})</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Akquise (90 Tage)</div>
+    <div class="kpi-value">${KK.akquise.funnel.anfragen} → ${KK.akquise.funnel.angebote} → ${KK.akquise.funnel.auftraege}</div>
+    <div class="kpi-sub">Anfragen → Angebote → Aufträge</div>
+  </div>`;
+
+/* Chart: Jahresvergleich */
+new Chart(document.getElementById('chart-jahre'), {
+  type: 'bar',
+  data: {
+    labels: F.jahresvergleich.map(j => j.jahr),
+    datasets: [
+      { label: 'Umsatz', data: F.jahresvergleich.map(j => j.umsatz), backgroundColor: KK_COLORS.orange, borderRadius: 6 },
+      { label: 'Kosten', data: F.jahresvergleich.map(j => j.kosten), backgroundColor: KK_COLORS.gray, borderRadius: 6 },
+      { label: 'EÜ / Gewinn', data: F.jahresvergleich.map(j => j.gewinn), backgroundColor: KK_COLORS.green, borderRadius: 6 }
+    ]
+  },
+  options: {
+    maintainAspectRatio: false,
+    scales: { y: { ticks: { callback: v => (v / 1000) + ' T€' } } }
+  }
+});
+
+/* Ziele-Widget mit Ampeln */
+const jahresfortschritt = 157 / 365; // 06.06.
+function zielRow(label, ist, ziel, fmt, zeitanteilig = true) {
+  const soll = zeitanteilig ? ziel * jahresfortschritt : ziel;
+  const stufe = ampel(ist / soll);
+  const pct = Math.min(100, ist / ziel * 100);
+  return `<div style="margin-bottom:16px">
+    <div class="flex-between" style="margin-bottom:5px">
+      <span>${ampelDot(stufe)}<strong style="color:var(--kk-dark)">${label}</strong></span>
+      <span class="muted">${fmt(ist)} / ${fmt(ziel)}</span>
+    </div>
+    <div class="progress"><div class="bar bar-${stufe}" style="width:${pct}%"></div></div>
+  </div>`;
+}
+document.getElementById('ziele-widget').innerHTML =
+  zielRow('Umsatz', Z.umsatz.ist, Z.umsatz.ziel, fmtEUR) +
+  zielRow('EÜ / Gewinn', Z.gewinn.ist, Z.gewinn.ziel, fmtEUR) +
+  zielRow('Aktive Teilnehmer', Z.tnAktiv.ist, Z.tnAktiv.ziel, fmtNum, false) +
+  zielRow('Trainingstage', Z.trainingstage.ist, Z.trainingstage.ziel, fmtNum) +
+  '<p class="muted" style="margin-top:4px">Ampel: Ist im Verhältnis zum anteiligen Jahresziel (Stichtag ' + KK.meta.stand + ').</p>';
+
+/* Alerts-Widget */
+document.getElementById('alerts-widget').innerHTML = KK.alerts.aktuelle.slice(0, 3).map(a => `
+  <div class="alert-item alert-${a.stufe}">
+    <div>
+      <div class="alert-title">${a.titel}</div>
+      <div class="alert-meta">${a.detail} · <a href="${a.modul}">Details ansehen</a></div>
+    </div>
+  </div>`).join('');
+
+/* Nächste Trainings */
+document.getElementById('tbl-trainings').innerHTML =
+  '<thead><tr><th>Datum</th><th>Training</th><th class="num">TN</th></tr></thead><tbody>' +
+  TR.anstehend.slice(0, 5).map(t =>
+    `<tr><td><strong>${t.datum}</strong></td><td>${t.training}<br><span class="muted">${t.trainer} · ${t.raum}</span></td><td class="num">${t.tn}</td></tr>`
+  ).join('') + '</tbody>';
+</script>
+</body>
+</html>

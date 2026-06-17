@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trainings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="app">
+<main class="main">
+
+  <div class="grid grid-4 mb-20" id="kpi-trainings"></div>
+
+  <div class="grid grid-2 mb-20">
+    <div class="card">
+      <div class="card-header">
+        <h2>Trainingstage 2026: absolviert & geplant</h2>
+        <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('Trainingstermine live aus Evidenz laden')">Aus Evidenz laden</button>
+      </div>
+      <div class="chart-box"><canvas id="chart-tage"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-header"><h2>No-Show-Rate Verlauf</h2></div>
+      <div class="chart-box"><canvas id="chart-noshow"></canvas></div>
+      <p class="muted" style="margin-top:10px" id="noshow-detail"></p>
+    </div>
+  </div>
+
+  <div class="grid grid-2 mb-20">
+    <div class="card">
+      <div class="card-header">
+        <h2>Kosten pro Training</h2>
+        <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('Kosten automatisch aus eingehenden Rechnungen (EBH) ermitteln bzw. aus TN-Zahl hochrechnen')">Aus EBH ermitteln</button>
+      </div>
+      <div class="table-wrap"><table class="kk-table" id="tbl-kosten"></table></div>
+      <p class="muted" style="margin-top:10px" id="kosten-hinweis"></p>
+    </div>
+    <div class="card">
+      <div class="card-header"><h2>Auslastung (TN pro Training)</h2></div>
+      <div id="auslastung-box"></div>
+    </div>
+  </div>
+
+  <div class="card mb-20">
+    <div class="card-header"><h2>TN-Zahl & Trainingstage pro Produkt</h2></div>
+    <div class="grid grid-2">
+      <div class="table-wrap"><table class="kk-table" id="tbl-produkte"></table></div>
+      <div class="chart-box chart-sm"><canvas id="chart-produkt-tn"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <h2>Anstehende Trainings</h2>
+      <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('Trainer- & Raumplanung mit Konfliktprüfung')">Planung öffnen</button>
+    </div>
+    <div class="table-wrap"><table class="kk-table" id="tbl-anstehend"></table></div>
+  </div>
+
+</main>
+</div>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+kkShell({ title: 'Trainings', subtitle: 'Trainingstage · No-Shows · Auslastung · Kosten' });
+kkChartDefaults();
+const TR = KK.trainings;
+
+document.getElementById('kpi-trainings').innerHTML = `
+  <div class="kpi">
+    <div class="kpi-label">Trainingstage absolviert</div>
+    <div class="kpi-value">${TR.tageAbsolviert}</div>
+    <div class="kpi-sub">2026 bis heute</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Anstehend / geplant</div>
+    <div class="kpi-value">${TR.tageGeplant}</div>
+    <div class="kpi-sub">Jahresplan: ${TR.tageGesamtJahr} Tage</div>
+  </div>
+  <div class="kpi ${TR.noShow.jahr > 5 ? 'kpi-yellow' : 'kpi-green'}">
+    <div class="kpi-label">No-Show-Rate</div>
+    <div class="kpi-value">${fmtPct(TR.noShow.monat)}</div>
+    <div class="kpi-sub">Monat · Jahr: ${fmtPct(TR.noShow.jahr)}</div>
+  </div>
+  <div class="kpi ${TR.auslastung.durchschnitt >= TR.auslastung.zielMin ? 'kpi-green' : 'kpi-red'}">
+    <div class="kpi-label">Ø Auslastung</div>
+    <div class="kpi-value">${TR.auslastung.durchschnitt.toLocaleString('de-DE')} TN</div>
+    <div class="kpi-sub">min ${TR.auslastung.min} · max ${TR.auslastung.max} · Ziel ≥ ${TR.auslastung.zielMin}</div>
+  </div>`;
+
+/* Trainingstage gestapelt */
+new Chart(document.getElementById('chart-tage'), {
+  type: 'bar',
+  data: {
+    labels: TR.monatsTage.labels,
+    datasets: [
+      { label: 'Absolviert', data: TR.monatsTage.absolviert, backgroundColor: KK_COLORS.orange, borderRadius: 5 },
+      { label: 'Geplant', data: TR.monatsTage.geplant, backgroundColor: KK_COLORS.orangeLight, borderRadius: 5 }
+    ]
+  },
+  options: {
+    maintainAspectRatio: false,
+    scales: { x: { stacked: true }, y: { stacked: true, ticks: { precision: 0 } } }
+  }
+});
+
+/* No-Show Verlauf */
+new Chart(document.getElementById('chart-noshow'), {
+  type: 'line',
+  data: {
+    labels: TR.noShowVerlauf.labels,
+    datasets: [
+      { label: 'No-Show-Rate (Monat)', data: TR.noShowVerlauf.werte, borderColor: KK_COLORS.orange, backgroundColor: 'rgba(228,122,61,0.12)', fill: true, tension: 0.35 },
+      { label: 'Schwelle 5 %', data: TR.noShowVerlauf.labels.map(() => 5), borderColor: KK_COLORS.red, borderDash: [6, 6], pointRadius: 0 }
+    ]
+  },
+  options: { maintainAspectRatio: false, scales: { y: { ticks: { callback: v => v + ' %' } } } }
+});
+document.getElementById('noshow-detail').textContent =
+  'Letzte 30 Tage: ' + TR.noShow.noShows30Tage + ' No-Shows bei ' + TR.noShow.tn30Tage + ' TN-Buchungen. Quelle: Evidenz. *Juni unvollständig.';
+
+/* Kosten */
+document.getElementById('tbl-kosten').innerHTML =
+  '<thead><tr><th>Kostenart</th><th class="num">Ø pro Trainingstag</th></tr></thead><tbody>' +
+  `<tr><td><strong>Trainer (Honorar)</strong></td><td class="num">${fmtEUR(TR.kosten.trainerProTag)}</td></tr>
+   <tr><td><strong>Raum (eigen/extern gemittelt)</strong></td><td class="num">${fmtEUR(TR.kosten.raumProTag)}</td></tr>
+   <tr><td>Material / Catering</td><td class="num">${fmtEUR(TR.kosten.gesamtProTagOe - TR.kosten.trainerProTag - TR.kosten.raumProTag)}</td></tr>` +
+  `</tbody><tfoot><tr><td>Gesamt Ø pro Trainingstag</td><td class="num">${fmtEUR(TR.kosten.gesamtProTagOe)}</td></tr></tfoot>`;
+document.getElementById('kosten-hinweis').textContent = TR.kostenHinweis;
+
+/* Auslastung */
+const ausl = TR.auslastung;
+document.getElementById('auslastung-box').innerHTML = `
+  <div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:18px">
+    <div><div class="muted">Minimum</div><div style="font-size:1.7rem;font-weight:700;color:var(--kk-red)">${ausl.min} TN</div></div>
+    <div><div class="muted">Durchschnitt</div><div style="font-size:1.7rem;font-weight:700;color:var(--kk-dark)">${ausl.durchschnitt.toLocaleString('de-DE')} TN</div></div>
+    <div><div class="muted">Maximum</div><div style="font-size:1.7rem;font-weight:700;color:var(--kk-green)">${ausl.max} TN</div></div>
+  </div>
+  <div class="progress" style="height:16px"><div class="bar ${ausl.durchschnitt >= ausl.zielMin ? 'bar-green' : 'bar-red'}" style="width:${ausl.durchschnitt / ausl.max * 100}%"></div></div>
+  <p class="muted" style="margin-top:10px">Ø-Auslastung relativ zum Maximum (${ausl.max} TN). Wirtschaftlichkeitsziel: mindestens ${ausl.zielMin} TN pro Training.</p>
+  <div style="margin-top:14px">${srcTag('Evidenz: Buchungen & Anwesenheiten')}</div>`;
+
+/* Produkte */
+document.getElementById('tbl-produkte').innerHTML =
+  '<thead><tr><th>Produkt</th><th class="num">TN</th><th class="num">Tage</th><th class="num">Ø Auslastung</th></tr></thead><tbody>' +
+  TR.tnProProdukt.map(p => `<tr>
+    <td><strong>${p.produkt}</strong></td>
+    <td class="num">${p.tn}</td>
+    <td class="num">${p.tage}</td>
+    <td class="num">${p.auslastung.toLocaleString('de-DE')}</td>
+  </tr>`).join('') + '</tbody>';
+
+new Chart(document.getElementById('chart-produkt-tn'), {
+  type: 'bar',
+  data: {
+    labels: TR.tnProProdukt.map(p => p.produkt),
+    datasets: [{ label: 'TN', data: TR.tnProProdukt.map(p => p.tn), backgroundColor: KK_COLORS.orange, borderRadius: 6 }]
+  },
+  options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { ticks: { precision: 0 } } } }
+});
+
+/* Anstehende Trainings */
+document.getElementById('tbl-anstehend').innerHTML =
+  '<thead><tr><th>Datum</th><th>Training</th><th>Trainer</th><th class="num">TN</th><th>Raum</th></tr></thead><tbody>' +
+  TR.anstehend.map(t => `<tr>
+    <td><strong>${t.datum}</strong></td>
+    <td>${t.training}</td>
+    <td>${t.trainer}</td>
+    <td class="num">${t.tn}</td>
+    <td>${t.raum}</td>
+  </tr>`).join('') + '</tbody>';
+</script>
+</body>
+</html>

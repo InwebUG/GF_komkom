@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Forecast & Ziele</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="app">
+<main class="main">
+
+  <div class="card mb-20">
+    <div class="card-header">
+      <h2>Umsatz-Forecast 2026</h2>
+      <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('Forecast automatisch aus Umsatzplanung + Auftragsbestand + Saisonalität berechnen')">Forecast neu berechnen</button>
+    </div>
+    <div class="chart-box"><canvas id="chart-forecast"></canvas></div>
+    <p class="muted" style="margin-top:10px">Durchgezogen = Ist-Umsatz · gestrichelt = Forecast aus Auftragsbestand & Planung · graue Linie = monatliches Soll für das Jahresziel.</p>
+  </div>
+
+  <h2 class="section-title">Soll/Ist-Vergleich – Ziele 2026</h2>
+  <div class="card mb-20">
+    <div class="table-wrap"><table class="kk-table" id="tbl-ziele"></table></div>
+    <p class="muted" style="margin-top:12px">Ampel-Logik: Ist im Verhältnis zum zeitanteiligen Jahresziel (Stichtag <span id="stichtag"></span>) — grün ≥ 95 %, gelb ≥ 80 %, rot darunter. TN-Ziel und No-Show werden absolut bewertet.</p>
+  </div>
+
+  <div class="grid grid-2">
+    <div class="card">
+      <div class="card-header">
+        <h2>Zielwerte bearbeiten</h2>
+        <span class="hint">Im Prototyp ohne Speicherung</span>
+      </div>
+      <div id="ziel-form"></div>
+      <button class="btn btn-impl" style="margin-top:10px" onclick="wirdImplementiert('Zielwerte speichern (pro Jahr, mit Historie)')">Ziele speichern</button>
+    </div>
+    <div class="card">
+      <div class="card-header"><h2>Zielerreichung gesamt</h2></div>
+      <div class="chart-box"><canvas id="chart-ziele"></canvas></div>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+kkShell({ title: 'Forecast & Ziele', subtitle: 'Jahresziele hinterlegen · Soll/Ist · Umsatz-Forecast' });
+kkChartDefaults();
+const Z = KK.ziele2026, FC = KK.forecastUmsatz;
+const jahresfortschritt = 157 / 365;
+document.getElementById('stichtag').textContent = KK.meta.stand + ', ' + Math.round(jahresfortschritt * 100) + ' % des Jahres';
+
+/* Forecast Chart */
+new Chart(document.getElementById('chart-forecast'), {
+  type: 'line',
+  data: {
+    labels: FC.labels,
+    datasets: [
+      { label: 'Ist-Umsatz', data: FC.ist, borderColor: KK_COLORS.orange, backgroundColor: 'rgba(228,122,61,0.12)', fill: true, tension: 0.35 },
+      { label: 'Forecast', data: FC.forecast, borderColor: KK_COLORS.orange, borderDash: [7, 6], pointStyle: 'rectRot', tension: 0.35 },
+      { label: 'Monats-Soll (Ziel/12)', data: FC.labels.map(() => FC.zielLinie), borderColor: KK_COLORS.gray, borderDash: [3, 4], pointRadius: 0 }
+    ]
+  },
+  options: { maintainAspectRatio: false, scales: { y: { ticks: { callback: v => (v / 1000) + ' T€' } } } }
+});
+
+/* Soll/Ist Tabelle */
+const ziele = [
+  { label: 'Umsatz', ist: Z.umsatz.ist, ziel: Z.umsatz.ziel, fmt: fmtEUR, zeitant: true },
+  { label: 'EÜ / Gewinn', ist: Z.gewinn.ist, ziel: Z.gewinn.ziel, fmt: fmtEUR, zeitant: true },
+  { label: 'Aktive Teilnehmer', ist: Z.tnAktiv.ist, ziel: Z.tnAktiv.ziel, fmt: fmtNum, zeitant: false },
+  { label: 'Trainingstage', ist: Z.trainingstage.ist, ziel: Z.trainingstage.ziel, fmt: fmtNum, zeitant: true, extra: '+ ' + Z.trainingstage.geplant + ' bereits geplant' },
+  { label: 'Neukunden', ist: Z.neukunden.ist, ziel: Z.neukunden.ziel, fmt: fmtNum, zeitant: true },
+  { label: 'No-Show-Rate (max.)', ist: Z.noShowMax.ist, ziel: Z.noShowMax.ziel, fmt: fmtPct, invers: true }
+];
+
+document.getElementById('tbl-ziele').innerHTML =
+  '<thead><tr><th>Kennzahl</th><th class="num">Ist</th><th class="num">Soll (anteilig)</th><th class="num">Jahresziel</th><th class="num">Zielerreichung</th><th>Status</th></tr></thead><tbody>' +
+  ziele.map(z => {
+    let stufe, soll;
+    if (z.invers) {
+      soll = z.ziel;
+      stufe = z.ist <= z.ziel ? 'green' : (z.ist <= z.ziel * 1.15 ? 'yellow' : 'red');
+    } else {
+      soll = z.zeitant ? z.ziel * jahresfortschritt : z.ziel;
+      stufe = ampel(z.ist / soll);
+    }
+    const erreicht = z.invers ? (z.ziel / z.ist * 100) : (z.ist / z.ziel * 100);
+    return `<tr>
+      <td><strong>${z.label}</strong>${z.extra ? '<br><span class="muted">' + z.extra + '</span>' : ''}</td>
+      <td class="num"><strong>${z.fmt(z.ist)}</strong></td>
+      <td class="num">${z.fmt(Math.round(soll * 10) / 10)}</td>
+      <td class="num">${z.fmt(z.ziel)}</td>
+      <td class="num">${fmtPct(Math.min(999, erreicht))}</td>
+      <td>${ampelDot(stufe)}<span class="badge badge-${stufe === 'green' ? 'green' : stufe === 'yellow' ? 'yellow' : 'red'}">${stufe === 'green' ? 'auf Kurs' : stufe === 'yellow' ? 'beobachten' : 'kritisch'}</span></td>
+    </tr>`;
+  }).join('') + '</tbody>';
+
+/* Ziel-Formular */
+document.getElementById('ziel-form').innerHTML = `
+  <div class="form-row"><label>Umsatzziel 2026</label><input type="text" value="820.000 €"></div>
+  <div class="form-row"><label>Gewinnziel (EÜ) 2026</label><input type="text" value="205.000 €"></div>
+  <div class="form-row"><label>Aktive Teilnehmer (Ziel)</label><input type="number" value="160"></div>
+  <div class="form-row"><label>Trainingstage (Ziel)</label><input type="number" value="230"></div>
+  <div class="form-row"><label>Neukunden (Ziel)</label><input type="number" value="12"></div>
+  <div class="form-row"><label>No-Show-Rate max.</label><input type="text" value="5,0 %"></div>`;
+
+/* Radar/Balken Zielerreichung */
+new Chart(document.getElementById('chart-ziele'), {
+  type: 'bar',
+  data: {
+    labels: ['Umsatz', 'Gewinn', 'Aktive TN', 'Trainingstage*', 'Neukunden'],
+    datasets: [{
+      label: 'Zielerreichung (% vom Jahresziel)',
+      data: [
+        Z.umsatz.ist / Z.umsatz.ziel * 100,
+        Z.gewinn.ist / Z.gewinn.ziel * 100,
+        Z.tnAktiv.ist / Z.tnAktiv.ziel * 100,
+        (Z.trainingstage.ist + Z.trainingstage.geplant) / Z.trainingstage.ziel * 100,
+        Z.neukunden.ist / Z.neukunden.ziel * 100
+      ],
+      backgroundColor: KK_COLORS.orange,
+      borderRadius: 6
+    }, {
+      label: 'Soll heute (' + Math.round(jahresfortschritt * 100) + ' %)',
+      data: [43, 43, 92, 43, 43].map((v, i) => i === 2 ? 100 : Math.round(jahresfortschritt * 100)),
+      backgroundColor: KK_COLORS.border,
+      borderRadius: 6
+    }]
+  },
+  options: {
+    maintainAspectRatio: false,
+    scales: { y: { max: 110, ticks: { callback: v => v + ' %' } } },
+    plugins: { tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y.toFixed(0) + ' %' } } }
+  }
+});
+</script>
+</body>
+</html>

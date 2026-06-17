@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Einstellungen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+<body>
+<div class="app">
+<main class="main">
+
+  <div class="card mb-20">
+    <div class="card-header">
+      <h2>Benutzerverwaltung</h2>
+      <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('Benutzer einladen per E-Mail mit Rollenzuweisung')">+ Benutzer einladen</button>
+    </div>
+    <div class="table-wrap"><table class="kk-table" id="tbl-benutzer"></table></div>
+    <p class="muted" style="margin-top:12px">Rollenkonzept: <strong>Geschäftsführung</strong> (alles), <strong>Buchhaltung</strong> (Finanzen + Berichte), <strong>Nur Lesen</strong> (Dashboard-Ansicht), <strong>Extern</strong> (eingeschränkte Module, nur Lesen).</p>
+  </div>
+
+  <div class="card mb-20">
+    <div class="card-header">
+      <h2>Datenquellen</h2>
+      <button class="btn btn-sm btn-impl btn-dark" onclick="wirdImplementiert('Verbindungstest aller Datenquellen')">Alle testen</button>
+    </div>
+    <div class="table-wrap"><table class="kk-table" id="tbl-quellen"></table></div>
+  </div>
+
+  <div class="grid grid-2">
+    <div class="card">
+      <div class="card-header"><h2>Darstellung & Verhalten</h2></div>
+      <div class="form-row">
+        <label>Startseite nach Anmeldung</label>
+        <select><option>Dashboard (Übersicht)</option><option>Finanzen</option><option>Teilnehmer</option></select>
+      </div>
+      <div class="form-row">
+        <label>Zahlenformat</label>
+        <select><option>Deutsch (1.234,56 €)</option><option>International (1,234.56 EUR)</option></select>
+      </div>
+      <div class="form-row">
+        <label>Automatische Datenaktualisierung</label>
+        <select><option>Täglich, 6:00 Uhr</option><option>Stündlich</option><option>Manuell</option></select>
+      </div>
+      <div class="form-row">
+        <label>Demo-Daten anzeigen (Prototyp)</label>
+        <label class="toggle"><input type="checkbox" checked disabled><span class="slider"></span></label>
+      </div>
+      <button class="btn btn-impl" style="margin-top:10px" onclick="wirdImplementiert('Einstellungen pro Benutzer speichern')">Speichern</button>
+    </div>
+    <div class="card">
+      <div class="card-header"><h2>Sicherheit</h2></div>
+      <div class="form-row">
+        <label>Zwei-Faktor-Authentifizierung</label>
+        <label class="toggle"><input type="checkbox"><span class="slider"></span></label>
+      </div>
+      <div class="form-row">
+        <label>Automatische Abmeldung nach</label>
+        <select><option>30 Minuten</option><option>1 Stunde</option><option>4 Stunden</option></select>
+      </div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:16px">
+        <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('Passwort ändern')">Passwort ändern</button>
+        <button class="btn btn-sm btn-outline btn-impl" onclick="wirdImplementiert('Login-Verlauf & aktive Sitzungen anzeigen')">Login-Verlauf</button>
+      </div>
+      <p class="muted" style="margin-top:16px">Hinweis Prototyp: Die Anmeldung ist noch nicht angebunden – jede Eingabe wird akzeptiert. Für den Echtbetrieb sind Benutzerkonten mit Passwort + optional 2FA vorgesehen.</p>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+kkShell({ title: 'Einstellungen', subtitle: 'Benutzer · Rollen · Datenquellen · Sicherheit' });
+
+document.getElementById('tbl-benutzer').innerHTML =
+  '<thead><tr><th>Name</th><th>E-Mail</th><th>Rolle</th><th>Status</th><th>Letzter Login</th><th></th></tr></thead><tbody>' +
+  KK.benutzer.map(b => `<tr>
+    <td><strong>${b.name}</strong></td>
+    <td>${b.email}</td>
+    <td>${b.rolle}</td>
+    <td><span class="badge ${b.status === 'aktiv' ? 'badge-green' : 'badge-yellow'}">${b.status}</span></td>
+    <td>${b.letzterLogin}</td>
+    <td><button class="btn btn-sm btn-outline btn-impl" onclick="wirdImplementiert('Benutzer bearbeiten: Rolle, Module, Sperren')">Bearbeiten</button></td>
+  </tr>`).join('') + '</tbody>';
+
+const statusBadge = { geplant: '<span class="badge badge-yellow">Anbindung geplant</span>', offen: '<span class="badge badge-red">Quelle zu klären</span>', aktiv: '<span class="badge badge-green">verbunden</span>' };
+document.getElementById('tbl-quellen').innerHTML =
+  '<thead><tr><th>Quelle</th><th>Typ</th><th>Liefert Daten für</th><th>Status</th><th></th></tr></thead><tbody>' +
+  KK.datenquellen.map(q => `<tr>
+    <td><strong>${q.name}</strong></td>
+    <td>${q.typ}</td>
+    <td>${q.nutzt}</td>
+    <td>${statusBadge[q.status]}</td>
+    <td><button class="btn btn-sm btn-impl" onclick="wirdImplementiert('Verbindung einrichten: ${q.name.replace(/'/g, '')}')">Verbinden</button></td>
+  </tr>`).join('') + '</tbody>';
+</script>
+</body>
+</html>
