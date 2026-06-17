@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="Logo.png">
 <link rel="stylesheet" href="assets/css/style.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
 </head>
@@ -30,20 +31,22 @@
     </div>
     <div class="card">
       <div class="card-header">
-        <h2>Ziele 2026 – Soll/Ist</h2>
-        <a href="forecast.html" class="btn btn-outline btn-sm">Zum Modul</a>
+        <h2>Aktive TN nach Produkt</h2>
+        <a href="teilnehmer.html" class="btn btn-outline btn-sm">Zum Modul</a>
       </div>
-      <div id="ziele-widget"></div>
+      <div class="chart-box"><canvas id="chart-tn-produkt"></canvas></div>
     </div>
   </div>
 
   <div class="grid grid-2 mb-20">
     <div class="card">
       <div class="card-header">
-        <h2>Aktuelle Hinweise</h2>
-        <a href="alerts.html" class="btn btn-outline btn-sm">Alle Alerts</a>
+        <h2>Angebote verschickt</h2>
+        <a href="akquise.html" class="btn btn-outline btn-sm">Zum Modul</a>
       </div>
-      <div id="alerts-widget"></div>
+      <div class="table-wrap">
+        <table class="kk-table" id="tbl-angebote-dash"></table>
+      </div>
     </div>
     <div class="card">
       <div class="card-header">
@@ -58,26 +61,29 @@
 
   <div class="card">
     <div class="card-header">
-      <h2>Datenaktualisierung</h2>
-      <span class="hint">Im Prototyp ohne Funktion</span>
+      <h2>Daten pflegen</h2>
+      <span class="hint">Manuelle Eingabe – ersetzt vorerst die automatischen Datenquellen</span>
     </div>
-    <p style="margin-bottom:16px">Später werden hier die Quellsysteme live abgefragt. Die Buttons zeigen die spätere Funktion:</p>
+    <p style="margin-bottom:16px">Die Zahlen werden derzeit manuell gepflegt. Wähle ein Modul, um Werte einzutragen oder zu aktualisieren:</p>
     <div style="display:flex;gap:12px;flex-wrap:wrap">
-      <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('Bankdaten abrufen (Kontostand & Umsätze via Banking-API)')">Bankdaten abrufen</button>
-      <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('Evidenz-Synchronisation (Teilnehmer, Trainings, No-Shows)')">Evidenz synchronisieren</button>
-      <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('HiDrive-Auswertungen einlesen (BuHa-PDFs & Umsatzplanung)')">HiDrive einlesen</button>
-      <button class="btn btn-sm btn-impl btn-dark" onclick="wirdImplementiert('Komplett-Aktualisierung aller Datenquellen')">Alles aktualisieren</button>
+      <button class="btn btn-sm btn-edit" onclick="kkOpenEditor('finanzen')">✎ Finanzen</button>
+      <button class="btn btn-sm btn-edit" onclick="kkOpenEditor('teilnehmer')">✎ Teilnehmer</button>
+      <button class="btn btn-sm btn-edit" onclick="kkOpenEditor('akquise')">✎ Akquise</button>
+      <button class="btn btn-sm btn-edit" onclick="kkOpenEditor('trainings')">✎ Trainings</button>
     </div>
   </div>
 
 </main>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/js/supabase.js"></script>
 <script src="assets/js/data.js"></script>
 <script src="assets/js/app.js"></script>
 <script>
 kkShell({ title: 'Dashboard', subtitle: 'Zukunftssicherung & Steuerung der aktuellen Aktivitäten · Stand ' + KK.meta.stand });
 kkChartDefaults();
+kkBoot(['finanzen','teilnehmer','akquise','trainings'], function () {
 
 const F = KK.finanzen, T = KK.teilnehmer, TR = KK.trainings, Z = KK.ziele2026;
 const j26 = F.jahresvergleich[3], j25 = F.jahresvergleich[2];
@@ -147,35 +153,35 @@ new Chart(document.getElementById('chart-jahre'), {
   }
 });
 
-/* Ziele-Widget mit Ampeln */
-const jahresfortschritt = 157 / 365; // 06.06.
-function zielRow(label, ist, ziel, fmt, zeitanteilig = true) {
-  const soll = zeitanteilig ? ziel * jahresfortschritt : ziel;
-  const stufe = ampel(ist / soll);
-  const pct = Math.min(100, ist / ziel * 100);
-  return `<div style="margin-bottom:16px">
-    <div class="flex-between" style="margin-bottom:5px">
-      <span>${ampelDot(stufe)}<strong style="color:var(--kk-dark)">${label}</strong></span>
-      <span class="muted">${fmt(ist)} / ${fmt(ziel)}</span>
-    </div>
-    <div class="progress"><div class="bar bar-${stufe}" style="width:${pct}%"></div></div>
-  </div>`;
-}
-document.getElementById('ziele-widget').innerHTML =
-  zielRow('Umsatz', Z.umsatz.ist, Z.umsatz.ziel, fmtEUR) +
-  zielRow('EÜ / Gewinn', Z.gewinn.ist, Z.gewinn.ziel, fmtEUR) +
-  zielRow('Aktive Teilnehmer', Z.tnAktiv.ist, Z.tnAktiv.ziel, fmtNum, false) +
-  zielRow('Trainingstage', Z.trainingstage.ist, Z.trainingstage.ziel, fmtNum) +
-  '<p class="muted" style="margin-top:4px">Ampel: Ist im Verhältnis zum anteiligen Jahresziel (Stichtag ' + KK.meta.stand + ').</p>';
+/* Aktive TN nach Produkt (Doughnut) */
+new Chart(document.getElementById('chart-tn-produkt'), {
+  type: 'doughnut',
+  data: {
+    labels: T.tnProProdukt.map(p => p.produkt),
+    datasets: [{
+      data: T.tnProProdukt.map(p => p.tn),
+      backgroundColor: [KK_COLORS.orange, KK_COLORS.dark, KK_COLORS.orangeLight, KK_COLORS.green, KK_COLORS.gray],
+      borderWidth: 2,
+      borderColor: '#FFFFFF'
+    }]
+  },
+  options: { maintainAspectRatio: false, cutout: '58%' }
+});
 
-/* Alerts-Widget */
-document.getElementById('alerts-widget').innerHTML = KK.alerts.aktuelle.slice(0, 3).map(a => `
-  <div class="alert-item alert-${a.stufe}">
-    <div>
-      <div class="alert-title">${a.titel}</div>
-      <div class="alert-meta">${a.detail} · <a href="${a.modul}">Details ansehen</a></div>
-    </div>
-  </div>`).join('');
+/* Angebote verschickt */
+const dashStatus = (s) => ({
+  neu: '<span class="badge badge-orange">neu</span>',
+  offen: '<span class="badge badge-yellow">offen</span>',
+  nachgefasst: '<span class="badge badge-gray">nachgefasst</span>'
+}[s] || s || '');
+document.getElementById('tbl-angebote-dash').innerHTML =
+  '<thead><tr><th>Kunde</th><th>Produkt</th><th class="num">Summe</th><th>Status</th></tr></thead><tbody>' +
+  KK.akquise.angebote.slice(0, 5).map(a => `<tr>
+    <td><strong>${a.kunde}</strong></td>
+    <td>${a.produkt}</td>
+    <td class="num">${fmtEUR(a.summe)}</td>
+    <td>${dashStatus(a.status)}</td>
+  </tr>`).join('') + '</tbody>';
 
 /* Nächste Trainings */
 document.getElementById('tbl-trainings').innerHTML =
@@ -183,6 +189,7 @@ document.getElementById('tbl-trainings').innerHTML =
   TR.anstehend.slice(0, 5).map(t =>
     `<tr><td><strong>${t.datum}</strong></td><td>${t.training}<br><span class="muted">${t.trainer} · ${t.raum}</span></td><td class="num">${t.tn}</td></tr>`
   ).join('') + '</tbody>';
+});
 </script>
 </body>
 </html>

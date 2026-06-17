@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="Logo.png">
 <link rel="stylesheet" href="assets/css/style.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
 </head>
@@ -14,16 +15,20 @@
 <div class="app">
 <main class="main">
 
+  <!-- KPI-Überblick (Hero) -->
+  <div class="grid grid-5 mb-20" id="kpi-finanzen-hero"></div>
+
   <!-- Jahresvergleich -->
-  <h2 class="section-title">Jahresvergleich (3 Jahre + laufendes Jahr)</h2>
+  <div class="section-head">
+    <h2 class="section-title">Jahresvergleich (3 Jahre + laufendes Jahr)</h2>
+    <button class="btn btn-sm btn-edit btn-edit-sec" onclick="kkOpenEditor('finanzen','jahresvergleich')">✎ bearbeiten</button>
+  </div>
   <div class="grid grid-2 mb-20">
     <div class="card">
       <div class="card-header">
         <h2>Umsatz · Kosten · EÜ/Gewinn</h2>
-        <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('BuHa-Auswertungen automatisch aus HiDrive einlesen (PDF-Parsing)')">HiDrive einlesen</button>
       </div>
       <div class="chart-box"><canvas id="chart-jahresvergleich"></canvas></div>
-      <div id="src-jahre" style="margin-top:12px"></div>
     </div>
     <div class="card">
       <div class="card-header"><h2>Übersicht als Tabelle</h2></div>
@@ -34,33 +39,34 @@
   </div>
 
   <!-- Ausstehende Rechnungen -->
-  <h2 class="section-title">Ausstehende Rechnungssummen</h2>
+  <div class="section-head">
+    <h2 class="section-title">Ausstehende Rechnungssummen</h2>
+    <button class="btn btn-sm btn-edit btn-edit-sec" onclick="kkOpenEditor('finanzen','rechnungen')">✎ bearbeiten</button>
+  </div>
   <div class="grid grid-2 mb-20">
     <div class="card">
       <div class="card-header">
         <h2>Offene Rechnungen (versendet)</h2>
-        <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('Offene Posten live aus Evidenz / Buchhaltung abrufen')">Aus Evidenz abrufen</button>
       </div>
       <div class="table-wrap"><table class="kk-table" id="tbl-offene"></table></div>
-      <div id="src-offene" style="margin-top:10px"></div>
     </div>
     <div class="card">
       <div class="card-header">
         <h2>Geplante Rechnungen (noch nicht abgerechnet)</h2>
-        <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('Umsatzplanung (Excel) aus HiDrive synchronisieren')">Excel-Sync</button>
       </div>
       <div class="table-wrap"><table class="kk-table" id="tbl-geplante"></table></div>
-      <div id="src-geplante" style="margin-top:10px"></div>
     </div>
   </div>
 
   <!-- Fixkosten -->
-  <h2 class="section-title">Anstehende Kosten</h2>
+  <div class="section-head">
+    <h2 class="section-title">Anstehende Kosten</h2>
+    <button class="btn btn-sm btn-edit btn-edit-sec" onclick="kkOpenEditor('finanzen','kosten')">✎ bearbeiten</button>
+  </div>
   <div class="grid grid-2 mb-20">
     <div class="card">
       <div class="card-header">
         <h2>Fixkosten + variable Kosten (Juni)</h2>
-        <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('Variable Kosten automatisch aus Belegungsliste berechnen')">Belegungsliste laden</button>
       </div>
       <div class="table-wrap"><table class="kk-table" id="tbl-fixkosten"></table></div>
     </div>
@@ -69,7 +75,6 @@
     <div class="card">
       <div class="card-header">
         <h2>Liquidität & Forecast</h2>
-        <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('Bankdaten abrufen – aktueller Kontostand & Umsätze via Banking-API (z. B. FinAPI)')">Bankdaten abrufen</button>
       </div>
       <div class="flex-between mb-20">
         <div>
@@ -86,18 +91,47 @@
 </main>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/js/supabase.js"></script>
 <script src="assets/js/data.js"></script>
 <script src="assets/js/app.js"></script>
 <script>
 kkShell({ title: 'Finanzen', subtitle: 'Jahresvergleich · Offene Posten · Fixkosten · Liquidität' });
 kkChartDefaults();
+kkBoot('finanzen', function () {
 const F = KK.finanzen;
 
-/* Quellen */
-document.getElementById('src-jahre').innerHTML =
-  srcTag('HiDrive: 2.1_GF\\FINANZEN\\Buchhaltungsauswertungen') + srcTag('2.1_GF\\FINANZEN\\Umsatzplanung');
-document.getElementById('src-offene').innerHTML = srcTag('Evidenz: offene Rechnungen');
-document.getElementById('src-geplante').innerHTML = srcTag('Umsatzplanung: „Noch nicht abgerechnet“');
+/* KPI-Überblick (Hero) */
+const jAktuell = F.jahresvergleich[F.jahresvergleich.length - 1] || { umsatz: 0, gewinn: 0 };
+const sumOffenHero = F.offeneRechnungen.reduce((s, r) => s + (r.betrag || 0), 0);
+const kostenHero = F.fixkosten.reduce((s, k) => s + (k.betrag || 0), 0);
+const liqMin = (F.liquiditaet.forecast && F.liquiditaet.forecast.minimum) || 0;
+document.getElementById('kpi-finanzen-hero').innerHTML = `
+  <div class="kpi ${F.liquiditaet.kontostand >= liqMin ? 'kpi-green' : 'kpi-red'}">
+    <div class="kpi-label">Kontostand</div>
+    <div class="kpi-value">${fmtEUR(F.liquiditaet.kontostand)}</div>
+    <div class="kpi-sub">Stand ${F.liquiditaet.kontostandDatum}</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Umsatz (${jAktuell.jahr || 'YTD'})</div>
+    <div class="kpi-value">${fmtEUR(jAktuell.umsatz)}</div>
+    <div class="kpi-sub">laufendes Jahr</div>
+  </div>
+  <div class="kpi kpi-green">
+    <div class="kpi-label">EÜ / Gewinn</div>
+    <div class="kpi-value">${fmtEUR(jAktuell.gewinn)}</div>
+    <div class="kpi-sub">${jAktuell.umsatz ? 'Marge ' + fmtPct(jAktuell.gewinn / jAktuell.umsatz * 100) : '—'}</div>
+  </div>
+  <div class="kpi kpi-yellow">
+    <div class="kpi-label">Offene Rechnungen</div>
+    <div class="kpi-value">${fmtEUR(sumOffenHero)}</div>
+    <div class="kpi-sub">voraussichtl. Einnahmen · ${F.offeneRechnungen.length} Rechnungen</div>
+  </div>
+  <div class="kpi kpi-red">
+    <div class="kpi-label">Anstehende Kosten</div>
+    <div class="kpi-value">${fmtEUR(kostenHero)}</div>
+    <div class="kpi-sub">fix + variabel / Monat</div>
+  </div>`;
 
 /* Jahresvergleich Chart + Tabelle */
 new Chart(document.getElementById('chart-jahresvergleich'), {
@@ -129,8 +163,9 @@ new Chart(document.getElementById('chart-monate'), {
   data: {
     labels: F.monatsumsatz2026.labels,
     datasets: [
-      { label: 'Umsatz', data: F.monatsumsatz2026.umsatz, borderColor: KK_COLORS.orange, backgroundColor: 'rgba(228,122,61,0.12)', fill: true, tension: 0.35 },
-      { label: 'Kosten', data: F.monatsumsatz2026.kosten, borderColor: KK_COLORS.gray, tension: 0.35 }
+      { label: 'Umsatz', data: F.monatsumsatz2026.umsatz, borderColor: KK_COLORS.orange,
+        fill: { target: 1, above: 'rgba(92,158,107,0.28)', below: 'rgba(204,75,59,0.20)' }, tension: 0.35 },
+      { label: 'Kosten', data: F.monatsumsatz2026.kosten, borderColor: KK_COLORS.gray, fill: false, tension: 0.35 }
     ]
   },
   options: { maintainAspectRatio: false, scales: { y: { ticks: { callback: v => (v / 1000) + ' T€' } } } }
@@ -175,7 +210,7 @@ document.getElementById('tbl-fixkosten').innerHTML =
   </tr>`).join('') +
   `</tbody><tfoot>
     <tr><td>Fixkosten gesamt</td><td class="num">${fmtEUR(sumFix)}</td><td colspan="2">monatlich</td></tr>
-    <tr><td>Variable Kosten (Juni, aus Belegungsliste)</td><td class="num">${fmtEUR(sumVar)}</td><td colspan="2">einsatzabhängig</td></tr>
+    <tr><td>Variable Kosten (Juni)</td><td class="num">${fmtEUR(sumVar)}</td><td colspan="2">einsatzabhängig</td></tr>
     <tr><td>Gesamt anstehend (Juni)</td><td class="num">${fmtEUR(sumFix + sumVar)}</td><td colspan="2"></td></tr>
   </tfoot>`;
 
@@ -192,6 +227,7 @@ new Chart(document.getElementById('chart-liquiditaet'), {
     ]
   },
   options: { maintainAspectRatio: false, scales: { y: { ticks: { callback: v => (v / 1000) + ' T€' } } } }
+});
 });
 </script>
 </body>

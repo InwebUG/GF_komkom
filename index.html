@@ -7,36 +7,31 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="Logo.png">
 <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body class="login-page">
 
   <div class="login-card">
-    <div class="logo-name" style="font-size:1.6rem;font-weight:700;color:var(--kk-dark)">
-      Kompetenz<span style="color:var(--kk-orange)">Kompanie</span>
-    </div>
-    <div class="login-claim">Echt. Persönlich. Wirksam.</div>
+    <img class="login-logo" src="Logo.png" alt="KompetenzKompanie">
     <h1>GF-Dashboard</h1>
 
     <form onsubmit="return kkLogin(event)">
       <div class="login-field">
-        <label for="login-user">Benutzername / E-Mail</label>
-        <input type="text" id="login-user" placeholder="z. B. gf@kompetenzkompanie.de" autocomplete="username">
+        <label for="login-user">E-Mail</label>
+        <input type="email" id="login-user" value="info@kompetenzkompanie.de" placeholder="info@kompetenzkompanie.de" autocomplete="username">
       </div>
       <div class="login-field">
         <label for="login-pass">Passwort</label>
         <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password">
       </div>
-      <button type="submit" class="btn btn-lg" style="width:100%;justify-content:center;margin-top:10px">Anmelden</button>
+      <div id="login-error" style="color:var(--kk-red);font-size:0.88rem;margin-bottom:8px;min-height:1em"></div>
+      <button type="submit" class="btn btn-lg" style="width:100%;justify-content:center;margin-top:4px">Anmelden</button>
     </form>
-
-    <p class="login-note">
-      Prototyp: Die Anmeldung ist noch nicht angebunden –<br>
-      jede Eingabe führt zum Dashboard.
-    </p>
-    <button class="btn btn-outline btn-sm" style="margin-top:14px" onclick="wirdImplementiert('Passwort vergessen / Zurücksetzen per E-Mail')">Passwort vergessen?</button>
   </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/js/supabase.js"></script>
 <script src="assets/js/data.js"></script>
 <script src="assets/js/app.js"></script>
 </body>

@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="Logo.png">
 <link rel="stylesheet" href="assets/css/style.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
 </head>
@@ -18,14 +19,15 @@
 
   <div class="grid grid-2 mb-20">
     <div class="card">
-      <div class="card-header"><h2>Akquise-Funnel (letzte 90 Tage)</h2></div>
+      <div class="card-header"><h2>Akquise-Funnel</h2>
+        <button class="btn btn-sm btn-edit btn-edit-sec" onclick="kkOpenEditor('akquise','funnel')">✎ bearbeiten</button>
+      </div>
       <div class="chart-box chart-sm"><canvas id="chart-funnel"></canvas></div>
-      <p class="muted" style="margin-top:10px">Quelle laut Anforderung: „TR?“ – Datenquelle für Akquise ist noch zu klären (siehe Einstellungen → Datenquellen).</p>
     </div>
     <div class="card">
       <div class="card-header">
         <h2>Neue Anfragen</h2>
-        <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('Anfragen automatisch aus Website-Formular & E-Mail-Postfach erfassen')">Auto-Erfassung</button>
+        <button class="btn btn-sm btn-edit btn-edit-sec" onclick="kkOpenEditor('akquise','anfragen')">✎ bearbeiten</button>
       </div>
       <div class="table-wrap"><table class="kk-table" id="tbl-anfragen"></table></div>
     </div>
@@ -34,10 +36,7 @@
   <div class="card mb-20">
     <div class="card-header">
       <h2>Angebote verschickt</h2>
-      <div>
-        <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('Angebot erstellen mit Vorlagen & Preiskalkulation (TN × Module)')">+ Neues Angebot</button>
-        <button class="btn btn-sm btn-outline btn-impl" onclick="wirdImplementiert('Automatische Nachfass-Erinnerungen für offene Angebote')">Nachfassen</button>
-      </div>
+      <button class="btn btn-sm btn-edit btn-edit-sec" onclick="kkOpenEditor('akquise','angebote')">✎ bearbeiten</button>
     </div>
     <div class="table-wrap"><table class="kk-table" id="tbl-angebote"></table></div>
   </div>
@@ -45,7 +44,7 @@
   <div class="card">
     <div class="card-header">
       <h2>Auftragsbestätigungen</h2>
-      <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('Auftrag direkt als Gruppe/Maßnahme in Evidenz anlegen')">In Evidenz übernehmen</button>
+      <button class="btn btn-sm btn-edit btn-edit-sec" onclick="kkOpenEditor('akquise','auftraege')">✎ bearbeiten</button>
     </div>
     <div class="table-wrap"><table class="kk-table" id="tbl-auftraege"></table></div>
   </div>
@@ -53,11 +52,14 @@
 </main>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/js/supabase.js"></script>
 <script src="assets/js/data.js"></script>
 <script src="assets/js/app.js"></script>
 <script>
 kkShell({ title: 'Akquise', subtitle: 'Anfragen · Angebote · Auftragsbestätigungen' });
 kkChartDefaults();
+kkBoot('akquise', function () {
 const A = KK.akquise;
 
 const sumAngebote = A.angebote.reduce((s, a) => s + a.summe, 0);
@@ -143,6 +145,7 @@ document.getElementById('tbl-auftraege').innerHTML =
     <td><span class="badge badge-green">${a.start}</span></td>
   </tr>`).join('') +
   `</tbody><tfoot><tr><td colspan="3">Summe (${A.auftragsbestaetigungen.length} Aufträge)</td><td class="num">${fmtEUR(sumAuftraege)}</td><td colspan="2"></td></tr></tfoot>`;
+});
 </script>
 </body>
 </html>

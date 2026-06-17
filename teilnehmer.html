@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="Logo.png">
 <link rel="stylesheet" href="assets/css/style.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
 </head>
@@ -14,62 +15,46 @@
 <div class="app">
 <main class="main">
 
+  <div class="section-head">
+    <h2 class="section-title">Kennzahlen</h2>
+    <button class="btn btn-sm btn-edit btn-edit-sec" onclick="kkOpenEditor('teilnehmer','kennzahlen')">✎ bearbeiten</button>
+  </div>
   <div class="grid grid-4 mb-20" id="kpi-tn"></div>
   <div class="grid grid-4 mb-20" id="kpi-tn2"></div>
 
   <div class="grid grid-2 mb-20">
     <div class="card">
-      <div class="card-header">
-        <h2>Beginn anstehend</h2>
-        <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('Zukünftige Aufträge direkt in Evidenz erfassen – Prozess wird definiert')">In Evidenz erfassen</button>
+      <div class="card-header"><h2>Entwicklung Teilnehmerzahlen</h2>
+        <button class="btn btn-sm btn-edit btn-edit-sec" onclick="kkOpenEditor('teilnehmer','entwicklung')">✎ bearbeiten</button>
       </div>
-      <div class="table-wrap"><table class="kk-table" id="tbl-beginn"></table></div>
-      <p class="muted" style="margin-top:10px">Hinweis aus Anforderung: Zukunftsaufträge besser gleich in Evidenz erfassen statt in separater Excel – Prozess definieren!</p>
-    </div>
-    <div class="card">
-      <div class="card-header">
-        <h2>Bald fertig (nur noch 1 Modul)</h2>
-        <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('Automatische Abschluss-Erinnerungen & Zertifikatserstellung')">Abschluss vorbereiten</button>
-      </div>
-      <div class="table-wrap"><table class="kk-table" id="tbl-fertig"></table></div>
-    </div>
-  </div>
-
-  <div class="grid grid-2 mb-20">
-    <div class="card">
-      <div class="card-header"><h2>Entwicklung Teilnehmerzahlen</h2></div>
       <div class="chart-box"><canvas id="chart-entwicklung"></canvas></div>
     </div>
     <div class="card">
-      <div class="card-header"><h2>Aktive TN nach Produkt</h2></div>
+      <div class="card-header"><h2>Aktive TN nach Produkt</h2>
+        <button class="btn btn-sm btn-edit btn-edit-sec" onclick="kkOpenEditor('teilnehmer','produkte')">✎ bearbeiten</button>
+      </div>
       <div class="chart-box"><canvas id="chart-produkte"></canvas></div>
     </div>
-  </div>
-
-  <div class="card">
-    <div class="card-header">
-      <h2>Datenquelle</h2>
-      <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('Evidenz-Synchronisation: Teilnehmerstammdaten, Modulbuchungen, TN-Tage')">Evidenz synchronisieren</button>
-    </div>
-    <p>Alle Teilnehmerdaten kommen später live aus <strong>Evidenz</strong> (Teilnehmer- und Seminarverwaltung). Zukunftsaufträge ergänzend aus der Excel-Erfassung, bis der Evidenz-Prozess definiert ist.</p>
-    <div style="margin-top:10px" id="src-tn"></div>
   </div>
 
 </main>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/js/supabase.js"></script>
 <script src="assets/js/data.js"></script>
 <script src="assets/js/app.js"></script>
 <script>
 kkShell({ title: 'Teilnehmer', subtitle: 'Ausbildungsstand · Starts · Abschlüsse · Kennzahlen' });
 kkChartDefaults();
+kkBoot('teilnehmer', function () {
 const T = KK.teilnehmer;
 
 document.getElementById('kpi-tn').innerHTML = `
   <div class="kpi">
     <div class="kpi-label">Aktuell in Ausbildung</div>
     <div class="kpi-value">${fmtNum(T.aktuellInAusbildung)}</div>
-    <div class="kpi-sub">Quelle: Evidenz</div>
+    <div class="kpi-sub">laufende Ausbildungen</div>
   </div>
   <div class="kpi kpi-yellow">
     <div class="kpi-label">Bald fertig (1 Modul)</div>
@@ -79,7 +64,7 @@ document.getElementById('kpi-tn').innerHTML = `
   <div class="kpi kpi-green">
     <div class="kpi-label">Beginn anstehend</div>
     <div class="kpi-value">${fmtNum(T.beginnAnstehend.reduce((s, g) => s + g.tn, 0))}</div>
-    <div class="kpi-sub">in ${T.beginnAnstehend.length} Gruppen, nächster Start ${T.beginnAnstehend[0].start}</div>
+    <div class="kpi-sub">in ${T.beginnAnstehend.length} Gruppen${T.beginnAnstehend.length ? ', nächster Start ' + T.beginnAnstehend[0].start : ''}</div>
   </div>
   <div class="kpi">
     <div class="kpi-label">Gesamtzahl TN</div>
@@ -109,24 +94,6 @@ document.getElementById('kpi-tn2').innerHTML = `
     <div class="kpi-sub">KomPass Führung, Führung konkret, BZTZ, mFA …</div>
   </div>`;
 
-document.getElementById('tbl-beginn').innerHTML =
-  '<thead><tr><th>Gruppe / Maßnahme</th><th class="num">TN</th><th>Start</th><th>Quelle</th></tr></thead><tbody>' +
-  T.beginnAnstehend.map(g => `<tr>
-    <td><strong>${g.name}</strong></td>
-    <td class="num">${g.tn}</td>
-    <td>${g.start}</td>
-    <td><span class="badge ${g.quelle.startsWith('Evidenz') ? 'badge-green' : 'badge-yellow'}">${g.quelle}</span></td>
-  </tr>`).join('') + '</tbody>';
-
-document.getElementById('tbl-fertig').innerHTML =
-  '<thead><tr><th>Gruppe</th><th class="num">TN</th><th>Letztes Modul</th><th>Termin</th></tr></thead><tbody>' +
-  T.baldFertigListe.map(g => `<tr>
-    <td><strong>${g.gruppe}</strong></td>
-    <td class="num">${g.tn}</td>
-    <td>${g.letztesModul}</td>
-    <td>${g.termin}</td>
-  </tr>`).join('') + '</tbody>';
-
 new Chart(document.getElementById('chart-entwicklung'), {
   type: 'bar',
   data: {
@@ -152,9 +119,7 @@ new Chart(document.getElementById('chart-produkte'), {
   },
   options: { maintainAspectRatio: false, cutout: '58%' }
 });
-
-document.getElementById('src-tn').innerHTML =
-  srcTag('Evidenz (führendes System)') + srcTag('Excel: erfasste Zukunftsaufträge (Übergangslösung)');
+});
 </script>
 </body>
 </html>

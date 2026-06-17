@@ -21,9 +21,9 @@ const KK = {
       { jahr: '2026 (YTD)', umsatz: 318650, kosten: 246900, gewinn: 71750 }
     ],
     monatsumsatz2026: {
-      labels: ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun*'],
-      umsatz: [58200, 61400, 67800, 54300, 62100, 14850],
-      kosten: [44100, 45800, 49600, 42900, 46200, 18300]
+      labels: ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun'],
+      umsatz: [42000, 48000, 54000, 60000, 66000, 72000],
+      kosten: [35000, 37000, 39000, 41000, 43000, 45000]
     },
     offeneRechnungen: [
       { nr: 'RE-2026-0142', kunde: 'Klinikum Nordstadt gGmbH', betrag: 12400, datum: '28.04.2026', faellig: '28.05.2026', tageUeberfaellig: 9 },

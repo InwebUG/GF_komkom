@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="Logo.png">
 <link rel="stylesheet" href="assets/css/style.css">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
 </head>
@@ -20,12 +21,14 @@
     <div class="card">
       <div class="card-header">
         <h2>Trainingstage 2026: absolviert & geplant</h2>
-        <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('Trainingstermine live aus Evidenz laden')">Aus Evidenz laden</button>
+        <button class="btn btn-sm btn-edit btn-edit-sec" onclick="kkOpenEditor('trainings','tage')">✎ bearbeiten</button>
       </div>
       <div class="chart-box"><canvas id="chart-tage"></canvas></div>
     </div>
     <div class="card">
-      <div class="card-header"><h2>No-Show-Rate Verlauf</h2></div>
+      <div class="card-header"><h2>No-Show-Rate Verlauf</h2>
+        <button class="btn btn-sm btn-edit btn-edit-sec" onclick="kkOpenEditor('trainings','tage')">✎ bearbeiten</button>
+      </div>
       <div class="chart-box"><canvas id="chart-noshow"></canvas></div>
       <p class="muted" style="margin-top:10px" id="noshow-detail"></p>
     </div>
@@ -35,19 +38,22 @@
     <div class="card">
       <div class="card-header">
         <h2>Kosten pro Training</h2>
-        <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('Kosten automatisch aus eingehenden Rechnungen (EBH) ermitteln bzw. aus TN-Zahl hochrechnen')">Aus EBH ermitteln</button>
+        <button class="btn btn-sm btn-edit btn-edit-sec" onclick="kkOpenEditor('trainings','kosten')">✎ bearbeiten</button>
       </div>
       <div class="table-wrap"><table class="kk-table" id="tbl-kosten"></table></div>
-      <p class="muted" style="margin-top:10px" id="kosten-hinweis"></p>
     </div>
     <div class="card">
-      <div class="card-header"><h2>Auslastung (TN pro Training)</h2></div>
+      <div class="card-header"><h2>Auslastung (TN pro Training)</h2>
+        <button class="btn btn-sm btn-edit btn-edit-sec" onclick="kkOpenEditor('trainings','kosten')">✎ bearbeiten</button>
+      </div>
       <div id="auslastung-box"></div>
     </div>
   </div>
 
   <div class="card mb-20">
-    <div class="card-header"><h2>TN-Zahl & Trainingstage pro Produkt</h2></div>
+    <div class="card-header"><h2>TN-Zahl & Trainingstage pro Produkt</h2>
+      <button class="btn btn-sm btn-edit btn-edit-sec" onclick="kkOpenEditor('trainings','produkte')">✎ bearbeiten</button>
+    </div>
     <div class="grid grid-2">
       <div class="table-wrap"><table class="kk-table" id="tbl-produkte"></table></div>
       <div class="chart-box chart-sm"><canvas id="chart-produkt-tn"></canvas></div>
@@ -57,7 +63,7 @@
   <div class="card">
     <div class="card-header">
       <h2>Anstehende Trainings</h2>
-      <button class="btn btn-sm btn-impl" onclick="wirdImplementiert('Trainer- & Raumplanung mit Konfliktprüfung')">Planung öffnen</button>
+      <button class="btn btn-sm btn-edit btn-edit-sec" onclick="kkOpenEditor('trainings','anstehend')">✎ bearbeiten</button>
     </div>
     <div class="table-wrap"><table class="kk-table" id="tbl-anstehend"></table></div>
   </div>
@@ -65,11 +71,14 @@
 </main>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/js/supabase.js"></script>
 <script src="assets/js/data.js"></script>
 <script src="assets/js/app.js"></script>
 <script>
 kkShell({ title: 'Trainings', subtitle: 'Trainingstage · No-Shows · Auslastung · Kosten' });
 kkChartDefaults();
+kkBoot('trainings', function () {
 const TR = KK.trainings;
 
 document.getElementById('kpi-trainings').innerHTML = `
@@ -123,7 +132,7 @@ new Chart(document.getElementById('chart-noshow'), {
   options: { maintainAspectRatio: false, scales: { y: { ticks: { callback: v => v + ' %' } } } }
 });
 document.getElementById('noshow-detail').textContent =
-  'Letzte 30 Tage: ' + TR.noShow.noShows30Tage + ' No-Shows bei ' + TR.noShow.tn30Tage + ' TN-Buchungen. Quelle: Evidenz. *Juni unvollständig.';
+  'Letzte 30 Tage: ' + TR.noShow.noShows30Tage + ' No-Shows bei ' + TR.noShow.tn30Tage + ' TN-Buchungen. *Juni unvollständig.';
 
 /* Kosten */
 document.getElementById('tbl-kosten').innerHTML =
@@ -132,8 +141,6 @@ document.getElementById('tbl-kosten').innerHTML =
    <tr><td><strong>Raum (eigen/extern gemittelt)</strong></td><td class="num">${fmtEUR(TR.kosten.raumProTag)}</td></tr>
    <tr><td>Material / Catering</td><td class="num">${fmtEUR(TR.kosten.gesamtProTagOe - TR.kosten.trainerProTag - TR.kosten.raumProTag)}</td></tr>` +
   `</tbody><tfoot><tr><td>Gesamt Ø pro Trainingstag</td><td class="num">${fmtEUR(TR.kosten.gesamtProTagOe)}</td></tr></tfoot>`;
-document.getElementById('kosten-hinweis').textContent = TR.kostenHinweis;
-
 /* Auslastung */
 const ausl = TR.auslastung;
 document.getElementById('auslastung-box').innerHTML = `
@@ -143,8 +150,7 @@ document.getElementById('auslastung-box').innerHTML = `
     <div><div class="muted">Maximum</div><div style="font-size:1.7rem;font-weight:700;color:var(--kk-green)">${ausl.max} TN</div></div>
   </div>
   <div class="progress" style="height:16px"><div class="bar ${ausl.durchschnitt >= ausl.zielMin ? 'bar-green' : 'bar-red'}" style="width:${ausl.durchschnitt / ausl.max * 100}%"></div></div>
-  <p class="muted" style="margin-top:10px">Ø-Auslastung relativ zum Maximum (${ausl.max} TN). Wirtschaftlichkeitsziel: mindestens ${ausl.zielMin} TN pro Training.</p>
-  <div style="margin-top:14px">${srcTag('Evidenz: Buchungen & Anwesenheiten')}</div>`;
+  <p class="muted" style="margin-top:10px">Ø-Auslastung relativ zum Maximum (${ausl.max} TN). Wirtschaftlichkeitsziel: mindestens ${ausl.zielMin} TN pro Training.</p>`;
 
 /* Produkte */
 document.getElementById('tbl-produkte').innerHTML =
@@ -175,6 +181,7 @@ document.getElementById('tbl-anstehend').innerHTML =
     <td class="num">${t.tn}</td>
     <td>${t.raum}</td>
   </tr>`).join('') + '</tbody>';
+});
 </script>
 </body>
 </html>
