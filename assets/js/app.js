@@ -58,6 +58,16 @@ async function kkLogout() {
   location.href = 'index.html';
 }
 
+/* Passwort beim Login ein-/ausblenden */
+function kkTogglePassword(btn) {
+  const inp = document.getElementById('login-pass');
+  if (!inp) return;
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  btn.textContent = show ? 'Verbergen' : 'Anzeigen';
+  btn.setAttribute('aria-label', show ? 'Passwort verbergen' : 'Passwort anzeigen');
+}
+
 /* ---------- Formatierung ---------- */
 const fmtEUR = (n) => n.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
 const fmtEUR2 = (n) => n.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2 });
@@ -125,15 +135,14 @@ function kkShell(opts) {
   const sidebar = document.createElement('aside');
   sidebar.className = 'sidebar';
   sidebar.innerHTML =
-    '<div class="sidebar-logo">' +
+    '<a class="sidebar-logo" href="dashboard.html" title="Zum Dashboard">' +
       '<img class="logo-mark" src="Logo.png" alt="KompetenzKompanie">' +
       '<img class="logo-wordmark" src="Logo_lang.png" alt="KompetenzKompanie">' +
-    '</div>' +
+    '</a>' +
     '<nav>' + navHtml + '</nav>' +
     '<div class="sidebar-footer">' +
       '<button class="btn-logout" onclick="kkLogout()" title="Abmelden">' +
         KK_ICONS.logout + '<span class="logout-label">Abmelden</span></button>' +
-      '<div class="sf-text">GF-Dashboard · Prototyp v0.1<br>Demo-Daten, Stand ' + KK.meta.stand + '</div>' +
     '</div>';
 
   const user = sessionStorage.getItem('kk_user') || KK.meta.nutzer.name;

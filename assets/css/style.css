@@ -145,6 +145,22 @@ a:hover { text-decoration: underline; }
   transition: border-color 0.2s;
 }
 .login-field input:focus { border-color: var(--kk-orange); }
+.pw-wrap { position: relative; }
+.pw-wrap input { padding-right: 96px; }
+.pw-toggle {
+  position: absolute;
+  top: 50%; right: 8px;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--kk-orange);
+  font-family: 'Roboto Condensed', Arial, sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 4px 8px;
+}
+.pw-toggle:hover { text-decoration: underline; }
 .login-note {
   margin-top: 20px;
   font-size: 0.85rem;
@@ -198,7 +214,9 @@ a:hover { text-decoration: underline; }
   padding: 16px 12px;
   min-height: 64px;
   border-bottom: 1px solid rgba(253, 253, 253, 0.12);
+  text-decoration: none;
 }
+.sidebar-logo:hover { text-decoration: none; opacity: 0.9; }
 .sidebar-logo img { display: block; object-fit: contain; }
 /* Eingeklappt: kompaktes Logo (Logo.png) */
 .sidebar-logo .logo-mark { max-width: 46px; max-height: 42px; }
