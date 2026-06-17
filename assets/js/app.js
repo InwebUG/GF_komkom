@@ -58,6 +58,15 @@ async function kkLogout() {
   location.href = 'index.html';
 }
 
+/* Mobile-Navigation (Burger) auf-/zuklappen */
+function kkToggleNav() {
+  const bar = document.querySelector('.sidebar');
+  if (!bar) return;
+  const open = bar.classList.toggle('open');
+  const burger = bar.querySelector('.kk-burger');
+  if (burger) burger.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
 /* Passwort beim Login ein-/ausblenden */
 function kkTogglePassword(btn) {
   const inp = document.getElementById('login-pass');
@@ -135,10 +144,15 @@ function kkShell(opts) {
   const sidebar = document.createElement('aside');
   sidebar.className = 'sidebar';
   sidebar.innerHTML =
-    '<a class="sidebar-logo" href="dashboard.html" title="Zum Dashboard">' +
-      '<img class="logo-mark" src="Logo.png" alt="KompetenzKompanie">' +
-      '<img class="logo-wordmark" src="Logo_lang.png" alt="KompetenzKompanie">' +
-    '</a>' +
+    '<div class="sidebar-top">' +
+      '<button class="kk-burger" type="button" aria-label="Menü öffnen/schließen" aria-expanded="false" onclick="kkToggleNav()">' +
+        '<span></span><span></span><span></span>' +
+      '</button>' +
+      '<a class="sidebar-logo" href="dashboard.html" title="Zum Dashboard">' +
+        '<img class="logo-mark" src="Logo.png" alt="KompetenzKompanie">' +
+        '<img class="logo-wordmark" src="Logo_lang.png" alt="KompetenzKompanie">' +
+      '</a>' +
+    '</div>' +
     '<nav>' + navHtml + '</nav>' +
     '<div class="sidebar-footer">' +
       '<button class="btn-logout" onclick="kkLogout()" title="Abmelden">' +
