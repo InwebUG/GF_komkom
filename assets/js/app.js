@@ -477,7 +477,7 @@ const KK_EDIT_SCHEMA = {
       { path: 'liquiditaet.forecast.minimum', label: 'Liquiditäts-Minimum (€)', kind: 'num' }
     ],
     lists: [
-      { key: 'jahresvergleich', label: 'Jahresvergleich', cols: [
+      { key: 'jahresvergleich', label: 'Jahresvergleich', note: 'wird automatisch aus den Monatsumsätzen berechnet – hier nur die Vorjahre eintragen.', cols: [
         { k: 'jahr', label: 'Jahr', kind: 'text' }, { k: 'umsatz', label: 'Umsatz', kind: 'num' },
         { k: 'kosten', label: 'Kosten', kind: 'num' }, { k: 'gewinn', label: 'EÜ/Gewinn', kind: 'num' } ] },
       { key: 'offeneRechnungen', label: 'Offene Rechnungen', cols: [
@@ -554,7 +554,7 @@ const KK_EDIT_SCHEMA = {
       { key: 'anfragen', label: 'Anfragen', cols: [
         { k: 'kunde', label: 'Kunde', kind: 'text' }, { k: 'thema', label: 'Thema', kind: 'text' },
         { k: 'eingang', label: 'Eingang', kind: 'text' }, { k: 'kanal', label: 'Kanal', kind: 'text' } ] },
-      { key: 'jahresvergleich', label: 'Jahresvergleich (Vorjahre – aktuelles Jahr wird automatisch berechnet)', cols: [
+      { key: 'jahresvergleich', label: 'Jahresvergleich (Vorjahre)', note: 'wird automatisch aus Angeboten, Auftragsbestätigungen & Anfragen berechnet – hier nur die Vorjahre eintragen.', cols: [
         { k: 'jahr', label: 'Jahr', kind: 'text' },
         { k: 'angeboteTn', label: 'Ang. TN', kind: 'num' }, { k: 'angeboteModule', label: 'Ang. Module', kind: 'num' }, { k: 'angeboteSumme', label: 'Ang. Summe', kind: 'num' },
         { k: 'auftraegeTn', label: 'AB TN', kind: 'num' }, { k: 'auftraegeModule', label: 'AB Module', kind: 'num' }, { k: 'auftraegeSumme', label: 'AB Summe', kind: 'num' },
@@ -859,6 +859,17 @@ function kkOpenEditor(modKey, sectionKey) {
         tr.appendChild(tdDel);
         tbody.appendChild(tr);
       });
+      // Hervorgehobene Hinweiszeile an der Stelle des aktuellen Jahres (unten,
+      // als neuestes Jahr): dieses Jahr wird automatisch berechnet.
+      if (listDef.note) {
+        const tr = document.createElement('tr');
+        tr.className = 'edit-autoyear';
+        const td = document.createElement('td');
+        td.colSpan = listDef.cols.length + 1;
+        td.innerHTML = '<span class="edit-autoyear-badge">↻ Aktuelles Jahr</span><span class="edit-autoyear-text">' + listDef.note + '</span>';
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+      }
       tbl.appendChild(tbody);
       wrap.innerHTML = '';
       wrap.appendChild(tbl);
