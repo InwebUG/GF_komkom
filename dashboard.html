@@ -87,21 +87,31 @@ kkChartDefaults();
 kkBoot(['finanzen','teilnehmer','akquise','trainings'], function () {
 
 const F = KK.finanzen, T = KK.teilnehmer, TR = KK.trainings, Z = KK.ziele2026;
-const j26 = F.jahresvergleich[3], j25 = F.jahresvergleich[2];
+
+/* Umsatz/EÜ YTD NICHT hochrechnen: tatsächliche Summe der eingetragenen
+   Monatswerte – identische Berechnung wie auf der Finanzen-Seite. */
+const M = F.monatsumsatz2026 || {};
+const ytdUmsatz = (M.umsatz || []).reduce((s, v) => s + (v || 0), 0);
+const ytdKosten = (M.kosten || []).reduce((s, v) => s + (v || 0), 0);
+const ytdGewinn = ytdUmsatz - ytdKosten;
+const jahre = Array.isArray(F.jahresvergleich) ? F.jahresvergleich : [];
+const ytdRow = jahre[jahre.length - 1];
+if (ytdRow) { ytdRow.umsatz = ytdUmsatz; ytdRow.kosten = ytdKosten; ytdRow.gewinn = ytdGewinn; }
+const vorjahr = jahre.length >= 2 ? jahre[jahre.length - 2] : null;
 
 /* KPI-Reihe Finanzen */
 const ueberfaellig = F.offeneRechnungen.filter(r => r.tageUeberfaellig > 0);
 const sumOffen = F.offeneRechnungen.reduce((s, r) => s + r.betrag, 0);
 document.getElementById('kpi-finanzen').innerHTML = `
   <div class="kpi">
-    <div class="kpi-label">Umsatz 2026 (YTD)</div>
-    <div class="kpi-value">${fmtEUR(j26.umsatz)}</div>
-    <div class="kpi-sub">Vorjahr gesamt: ${fmtEUR(j25.umsatz)}</div>
+    <div class="kpi-label">Umsatz ${ytdRow && ytdRow.jahr ? ytdRow.jahr : 'YTD'}</div>
+    <div class="kpi-value">${fmtEUR(ytdUmsatz)}</div>
+    <div class="kpi-sub">${vorjahr ? 'Vorjahr gesamt: ' + fmtEUR(vorjahr.umsatz) : 'Summe der eingetragenen Monate'}</div>
   </div>
   <div class="kpi kpi-green">
     <div class="kpi-label">EÜ / Gewinn (YTD)</div>
-    <div class="kpi-value">${fmtEUR(j26.gewinn)}</div>
-    <div class="kpi-sub"><span class="kpi-trend trend-up">▲ Marge ${fmtPct(j26.gewinn / j26.umsatz * 100)}</span></div>
+    <div class="kpi-value">${fmtEUR(ytdGewinn)}</div>
+    <div class="kpi-sub">${ytdUmsatz ? '<span class="kpi-trend trend-up">▲ Marge ' + fmtPct(ytdGewinn / ytdUmsatz * 100) + '</span>' : 'Marge —'}</div>
   </div>
   <div class="kpi ${ueberfaellig.length ? 'kpi-red' : 'kpi-green'}">
     <div class="kpi-label">Offene Rechnungen</div>

@@ -121,11 +121,12 @@ const F = KK.finanzen;
 const M = F.monatsumsatz2026 || {};
 const ytdUmsatz = (M.umsatz || []).reduce((s, v) => s + (v || 0), 0);
 const ytdKosten = (M.kosten || []).reduce((s, v) => s + (v || 0), 0);
+const ytdGewinn = ytdUmsatz - ytdKosten;
 const ytdRow = F.jahresvergleich[F.jahresvergleich.length - 1];
 if (ytdRow) {
   ytdRow.umsatz = ytdUmsatz;
   ytdRow.kosten = ytdKosten;
-  ytdRow.gewinn = ytdUmsatz - ytdKosten;
+  ytdRow.gewinn = ytdGewinn;
 }
 
 /* KPI-Überblick (Hero) */
@@ -145,13 +146,13 @@ document.getElementById('kpi-finanzen-hero').innerHTML = `
   </div>
   <div class="kpi">
     <div class="kpi-label">Umsatz (${jAktuell.jahr || 'YTD'})</div>
-    <div class="kpi-value">${fmtEUR(jAktuell.umsatz)}</div>
-    <div class="kpi-sub">laufendes Jahr</div>
+    <div class="kpi-value">${fmtEUR(ytdUmsatz)}</div>
+    <div class="kpi-sub">Summe der eingetragenen Monate</div>
   </div>
   <div class="kpi kpi-green">
     <div class="kpi-label">EÜ / Gewinn</div>
-    <div class="kpi-value">${fmtEUR(jAktuell.gewinn)}</div>
-    <div class="kpi-sub">${jAktuell.umsatz ? 'Marge ' + fmtPct(jAktuell.gewinn / jAktuell.umsatz * 100) : '—'}</div>
+    <div class="kpi-value">${fmtEUR(ytdGewinn)}</div>
+    <div class="kpi-sub">${ytdUmsatz ? 'Marge ' + fmtPct(ytdGewinn / ytdUmsatz * 100) : '—'}</div>
   </div>
   <div class="kpi kpi-yellow">
     <div class="kpi-label">Offene + geplante Rechnungen</div>
