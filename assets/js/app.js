@@ -77,11 +77,11 @@ function kkTogglePassword(btn) {
   btn.setAttribute('aria-label', show ? 'Passwort verbergen' : 'Passwort anzeigen');
 }
 
-/* ---------- Formatierung ---------- */
-const fmtEUR = (n) => n.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
-const fmtEUR2 = (n) => n.toLocaleString('de-DE', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2 });
-const fmtNum = (n) => n.toLocaleString('de-DE');
-const fmtPct = (n) => n.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' %';
+/* ---------- Formatierung (null-/NaN-sicher: leere Werte -> „–") ---------- */
+const fmtEUR = (n) => (n == null || isNaN(n)) ? '–' : Number(n).toLocaleString('de-DE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 });
+const fmtEUR2 = (n) => (n == null || isNaN(n)) ? '–' : Number(n).toLocaleString('de-DE', { style: 'currency', currency: 'EUR', minimumFractionDigits: 2 });
+const fmtNum = (n) => (n == null || isNaN(n)) ? '–' : Number(n).toLocaleString('de-DE');
+const fmtPct = (n) => (n == null || isNaN(n)) ? '–' : Number(n).toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' %';
 
 /* ---------- "Wird implementiert"-Hinweis ---------- */
 function wirdImplementiert(feature) {
@@ -274,6 +274,7 @@ function kkLoadStore() {
   catch (e) { return {}; }
 }
 function kkSaveModule(modKey, data) {
+  if (KK_DEMO_MODE) { console.warn('Demo-Modus aktiv – lokales Speichern blockiert.'); return; }
   const store = kkLoadStore();
   store[modKey] = data;
   localStorage.setItem(KK_STORE_KEY, JSON.stringify(store));
@@ -321,7 +322,7 @@ let KK_RENDER_FN = null;
 const KK_SECTIONS = {
   finanzen: {
     jahresvergleich: { label: 'Jahresvergleich', lists: ['jahresvergleich'], series: ['monatsumsatz2026'] },
-    rechnungen:      { label: 'Ausstehende Rechnungen', lists: ['offeneRechnungen', 'geplanteRechnungen'] },
+    rechnungen:      { label: 'Ausstehende Rechnungen', lists: ['offeneRechnungen', 'geplanteRechnungen', 'bezahlteRechnungen'] },
     kosten:          { label: 'Anstehende Kosten & Liquidität', scalars: ['liquiditaet.kontostand', 'liquiditaet.kontostandDatum', 'liquiditaet.forecast.minimum'], lists: ['fixkosten'], series: ['liquiditaet.forecast'] }
   },
   teilnehmer: {
@@ -333,7 +334,8 @@ const KK_SECTIONS = {
     funnel:    { label: 'Akquise-Funnel', scalars: ['funnel.anfragen', 'funnel.angebote', 'funnel.auftraege', 'funnel.zeitraum'] },
     anfragen:  { label: 'Neue Anfragen', lists: ['anfragen'] },
     angebote:  { label: 'Angebote', lists: ['angebote'] },
-    auftraege: { label: 'Auftragsbestätigungen', lists: ['auftragsbestaetigungen'] }
+    auftraege: { label: 'Auftragsbestätigungen', lists: ['auftragsbestaetigungen'] },
+    jahresvergleich: { label: 'Jahresvergleich (Vorjahre)', lists: ['jahresvergleich'] }
   },
   trainings: {
     tage:      { label: 'Trainingstage & No-Show', scalars: ['tageAbsolviert', 'tageGeplant', 'tageGesamtJahr', 'noShow.monat', 'noShow.jahr', 'noShow.noShows30Tage', 'noShow.tn30Tage'], series: ['monatsTage', 'noShowVerlauf'] },
@@ -348,7 +350,7 @@ const KK_DB_MAP = {
   finanzen: {
     table: 'komkom_finanzen',
     scalars: [['kontostand', 'liquiditaet.kontostand'], ['kontostand_datum', 'liquiditaet.kontostandDatum'], ['liquiditaet_minimum', 'liquiditaet.forecast.minimum']],
-    json: [['jahresvergleich', 'jahresvergleich'], ['monatsumsatz', 'monatsumsatz2026'], ['offene_rechnungen', 'offeneRechnungen'], ['geplante_rechnungen', 'geplanteRechnungen'], ['fixkosten', 'fixkosten'], ['liquiditaet_forecast', 'liquiditaet.forecast']]
+    json: [['jahresvergleich', 'jahresvergleich'], ['monatsumsatz', 'monatsumsatz2026'], ['offene_rechnungen', 'offeneRechnungen'], ['geplante_rechnungen', 'geplanteRechnungen'], ['bezahlte_rechnungen', 'bezahlteRechnungen'], ['fixkosten', 'fixkosten'], ['liquiditaet_forecast', 'liquiditaet.forecast']]
   },
   teilnehmer: {
     table: 'komkom_teilnehmer',
@@ -358,7 +360,7 @@ const KK_DB_MAP = {
   akquise: {
     table: 'komkom_akquise',
     scalars: [['funnel_anfragen', 'funnel.anfragen'], ['funnel_angebote', 'funnel.angebote'], ['funnel_auftraege', 'funnel.auftraege'], ['funnel_zeitraum', 'funnel.zeitraum']],
-    json: [['angebote', 'angebote'], ['auftragsbestaetigungen', 'auftragsbestaetigungen'], ['anfragen', 'anfragen']]
+    json: [['angebote', 'angebote'], ['auftragsbestaetigungen', 'auftragsbestaetigungen'], ['anfragen', 'anfragen'], ['jahresvergleich', 'jahresvergleich']]
   },
   trainings: {
     table: 'komkom_trainings',
@@ -440,6 +442,9 @@ function kkSetDemoMode(on) {
 /* Modul (oder nur eine Sektion) in Supabase speichern (Upsert). */
 async function kkPersistModule(modKey, src, allowedPaths) {
   if (!kkSupabaseReady()) return false;
+  // Sicherheitsnetz: Im Demo-Modus NIEMALS ins Backend schreiben (Demo-Daten
+  // dürfen die echten Kundendaten nicht überschreiben).
+  if (KK_DEMO_MODE) { console.warn('Demo-Modus aktiv – Speichern ins Backend blockiert.'); return false; }
   const row = kkModuleToRow(modKey, src, allowedPaths);
   const { error } = await kkTable(modKey).upsert(row, { onConflict: 'customer_id' });
   if (error) { console.warn('Supabase-Schreibfehler (' + modKey + '):', error.message); alert('Speichern in Supabase fehlgeschlagen:\n' + error.message); return false; }
@@ -470,10 +475,17 @@ const KK_EDIT_SCHEMA = {
       { key: 'offeneRechnungen', label: 'Offene Rechnungen', cols: [
         { k: 'nr', label: 'Nr.', kind: 'text' }, { k: 'kunde', label: 'Kunde', kind: 'text' },
         { k: 'betrag', label: 'Betrag', kind: 'num' }, { k: 'datum', label: 'Datum', kind: 'text' },
-        { k: 'faellig', label: 'Fällig', kind: 'text' }, { k: 'tageUeberfaellig', label: 'Tage überf.', kind: 'num' } ] },
+        { k: 'faellig', label: 'Fällig', kind: 'text' }, { k: 'tageUeberfaellig', label: 'Tage überf.', kind: 'num' },
+        { k: 'status', label: 'Status', kind: 'select', options: ['geplant', 'offen', 'bezahlt'], default: 'offen' } ] },
       { key: 'geplanteRechnungen', label: 'Geplante Rechnungen', cols: [
         { k: 'kunde', label: 'Kunde', kind: 'text' }, { k: 'leistung', label: 'Leistung', kind: 'text' },
-        { k: 'betrag', label: 'Betrag', kind: 'num' }, { k: 'geplant', label: 'Geplant zum', kind: 'text' } ] },
+        { k: 'betrag', label: 'Betrag', kind: 'num' }, { k: 'geplant', label: 'Geplant zum', kind: 'text' },
+        { k: 'status', label: 'Status', kind: 'select', options: ['geplant', 'offen', 'bezahlt'], default: 'geplant' } ] },
+      { key: 'bezahlteRechnungen', label: 'Bezahlte Rechnungen', cols: [
+        { k: 'nr', label: 'Nr.', kind: 'text' }, { k: 'kunde', label: 'Kunde', kind: 'text' },
+        { k: 'leistung', label: 'Leistung', kind: 'text' }, { k: 'betrag', label: 'Betrag', kind: 'num' },
+        { k: 'bezahltAm', label: 'Bezahlt am', kind: 'text' },
+        { k: 'status', label: 'Status', kind: 'select', options: ['geplant', 'offen', 'bezahlt'], default: 'bezahlt' } ] },
       { key: 'fixkosten', label: 'Fixkosten & variable Kosten', cols: [
         { k: 'posten', label: 'Posten', kind: 'text' }, { k: 'betrag', label: 'Betrag/Monat', kind: 'num' },
         { k: 'faellig', label: 'Fälligkeit', kind: 'text' }, { k: 'art', label: 'Art (fix/variabel)', kind: 'text' } ] }
@@ -524,14 +536,21 @@ const KK_EDIT_SCHEMA = {
         { k: 'kunde', label: 'Kunde', kind: 'text' }, { k: 'produkt', label: 'Produkt', kind: 'text' },
         { k: 'tn', label: 'TN', kind: 'num' }, { k: 'module', label: 'Module', kind: 'num' },
         { k: 'summe', label: 'Summe', kind: 'num' }, { k: 'datum', label: 'Datum', kind: 'text' },
-        { k: 'status', label: 'Status', kind: 'text' } ] },
+        { k: 'status', label: 'Status', kind: 'select', options: ['neu', 'offen', 'abgelehnt', 'angenommen'], default: 'offen' } ] },
       { key: 'auftragsbestaetigungen', label: 'Auftragsbestätigungen', cols: [
         { k: 'kunde', label: 'Kunde', kind: 'text' }, { k: 'produkt', label: 'Produkt', kind: 'text' },
-        { k: 'tn', label: 'TN', kind: 'num' }, { k: 'summe', label: 'Summe', kind: 'num' },
-        { k: 'datum', label: 'Datum', kind: 'text' }, { k: 'start', label: 'Start', kind: 'text' } ] },
+        { k: 'tn', label: 'TN', kind: 'num' }, { k: 'module', label: 'Module', kind: 'num' },
+        { k: 'summe', label: 'Summe', kind: 'num' }, { k: 'datum', label: 'Datum', kind: 'text' },
+        { k: 'start', label: 'Start', kind: 'text' },
+        { k: 'status', label: 'Status', kind: 'select', options: ['neu', 'offen', 'abgelehnt', 'angenommen'], default: 'angenommen' } ] },
       { key: 'anfragen', label: 'Anfragen', cols: [
         { k: 'kunde', label: 'Kunde', kind: 'text' }, { k: 'thema', label: 'Thema', kind: 'text' },
-        { k: 'eingang', label: 'Eingang', kind: 'text' }, { k: 'kanal', label: 'Kanal', kind: 'text' } ] }
+        { k: 'eingang', label: 'Eingang', kind: 'text' }, { k: 'kanal', label: 'Kanal', kind: 'text' } ] },
+      { key: 'jahresvergleich', label: 'Jahresvergleich (Vorjahre – aktuelles Jahr wird automatisch berechnet)', cols: [
+        { k: 'jahr', label: 'Jahr', kind: 'text' },
+        { k: 'angeboteTn', label: 'Ang. TN', kind: 'num' }, { k: 'angeboteModule', label: 'Ang. Module', kind: 'num' }, { k: 'angeboteSumme', label: 'Ang. Summe', kind: 'num' },
+        { k: 'auftraegeTn', label: 'AB TN', kind: 'num' }, { k: 'auftraegeModule', label: 'AB Module', kind: 'num' }, { k: 'auftraegeSumme', label: 'AB Summe', kind: 'num' },
+        { k: 'anfragenSumme', label: 'Anfragen', kind: 'num' } ] }
     ],
     series: []
   },
@@ -571,6 +590,84 @@ const KK_EDIT_SCHEMA = {
   }
 };
 
+/* ---------- Verschiebe-Logik beim Speichern ----------
+   Wird vor dem Persistieren auf die (vollständige) Modul-Kopie angewendet und
+   verschiebt Einträge anhand ihres Status zwischen den Listen. */
+/* Heutiges Datum als TT.MM.JJJJ (für „bezahlt am") */
+function kkHeute() {
+  const d = new Date();
+  const p = (n) => ('0' + n).slice(-2);
+  return p(d.getDate()) + '.' + p(d.getMonth() + 1) + '.' + d.getFullYear();
+}
+
+const KK_SAVE_TRANSFORMS = {
+  finanzen: function (w) {
+    if (!Array.isArray(w.offeneRechnungen)) w.offeneRechnungen = [];
+    if (!Array.isArray(w.geplanteRechnungen)) w.geplanteRechnungen = [];
+    if (!Array.isArray(w.bezahlteRechnungen)) w.bezahlteRechnungen = [];
+
+    const toOffen = (r, faellig) => ({
+      nr: r.nr || '', kunde: r.kunde || '', betrag: (r.betrag != null ? r.betrag : null),
+      datum: r.datum || '', faellig: faellig || '', tageUeberfaellig: 0,
+      leistung: r.leistung || '', status: 'offen'
+    });
+    const toGeplant = (r, geplant) => ({
+      kunde: r.kunde || '', leistung: r.leistung || '', betrag: (r.betrag != null ? r.betrag : null),
+      geplant: geplant || '', status: 'geplant'
+    });
+    const toBezahlt = (r) => ({
+      nr: r.nr || '', kunde: r.kunde || '', leistung: r.leistung || '',
+      betrag: (r.betrag != null ? r.betrag : null),
+      bezahltAm: r.bezahltAm || kkHeute(), status: 'bezahlt'
+    });
+
+    // Geplante: „offen" -> offene Liste, „bezahlt" -> bezahlte Liste
+    const keepGeplant = [];
+    w.geplanteRechnungen.forEach((r) => {
+      const st = r.status || 'geplant';
+      if (st === 'offen') w.offeneRechnungen.push(toOffen(r, r.geplant));
+      else if (st === 'bezahlt') w.bezahlteRechnungen.push(toBezahlt(r));
+      else { r.status = 'geplant'; keepGeplant.push(r); }
+    });
+    w.geplanteRechnungen = keepGeplant;
+
+    // Offene: „bezahlt" -> bezahlte Liste, „geplant" -> zurück in geplante
+    const keepOffen = [];
+    w.offeneRechnungen.forEach((r) => {
+      const st = r.status || 'offen';
+      if (st === 'bezahlt') w.bezahlteRechnungen.push(toBezahlt(r));
+      else if (st === 'geplant') w.geplanteRechnungen.push(toGeplant(r, r.faellig || r.datum));
+      else { r.status = 'offen'; keepOffen.push(r); }
+    });
+    w.offeneRechnungen = keepOffen;
+
+    // Bezahlte: Rückbuchung möglich („offen"/„geplant")
+    const keepBezahlt = [];
+    w.bezahlteRechnungen.forEach((r) => {
+      const st = r.status || 'bezahlt';
+      if (st === 'offen') w.offeneRechnungen.push(toOffen(r, ''));
+      else if (st === 'geplant') w.geplanteRechnungen.push(toGeplant(r, ''));
+      else { r.status = 'bezahlt'; keepBezahlt.push(r); }
+    });
+    w.bezahlteRechnungen = keepBezahlt;
+  },
+
+  akquise: function (w) {
+    if (!Array.isArray(w.angebote)) w.angebote = [];
+    if (!Array.isArray(w.auftragsbestaetigungen)) w.auftragsbestaetigungen = [];
+    // Angenommene Angebote in die Auftragsbestätigungen übernehmen (Dedupe)
+    w.angebote.forEach((a) => {
+      if ((a.status || '') !== 'angenommen') return;
+      const exists = w.auftragsbestaetigungen.some((x) =>
+        x.kunde === a.kunde && x.produkt === a.produkt && x.summe === a.summe && x.datum === a.datum);
+      if (!exists) w.auftragsbestaetigungen.push({
+        kunde: a.kunde, produkt: a.produkt, tn: a.tn, module: a.module,
+        summe: a.summe, datum: a.datum, start: a.start || '–', status: 'angenommen'
+      });
+    });
+  }
+};
+
 /* ---------- Editor: Eingabe-Helfer ---------- */
 function kkParseVal(raw, kind) {
   if (kind === 'num') {
@@ -607,7 +704,21 @@ function kkGroupInput(raw) {
   return out;
 }
 
-function kkInput(kind, value, onChange) {
+function kkInput(kind, value, onChange, def) {
+  if (kind === 'select') {
+    const sel = document.createElement('select');
+    sel.className = 'kk-edit-select';
+    const options = (def && def.options) || [];
+    const eff = options.indexOf(value) !== -1 ? value : ((def && def.default) || options[0] || '');
+    options.forEach((o) => {
+      const op = document.createElement('option');
+      op.value = o; op.textContent = o;
+      if (o === eff) op.selected = true;
+      sel.appendChild(op);
+    });
+    sel.addEventListener('change', () => onChange(sel.value));
+    return sel;
+  }
   const inp = document.createElement('input');
   if (kind === 'num') {
     inp.type = 'text';
@@ -697,7 +808,7 @@ function kkOpenEditor(modKey, sectionKey) {
       const lbl = document.createElement('label');
       lbl.textContent = f.label;
       field.appendChild(lbl);
-      field.appendChild(kkInput(f.kind, kkGetPath(work, f.path), (v) => kkSetPath(work, f.path, v)));
+      field.appendChild(kkInput(f.kind, kkGetPath(work, f.path), (v) => kkSetPath(work, f.path, v), f));
       grid.appendChild(field);
     });
     grp.appendChild(grid);
@@ -727,7 +838,7 @@ function kkOpenEditor(modKey, sectionKey) {
         const tr = document.createElement('tr');
         listDef.cols.forEach((c) => {
           const td = document.createElement('td');
-          td.appendChild(kkInput(c.kind, row[c.k], (v) => { row[c.k] = v; }));
+          td.appendChild(kkInput(c.kind, row[c.k], (v) => { row[c.k] = v; }, c));
           tr.appendChild(td);
         });
         const tdDel = document.createElement('td');
@@ -849,9 +960,20 @@ function kkOpenEditor(modKey, sectionKey) {
 
   /* Speichern -> Supabase (bzw. localStorage offline), Entwurf löschen, neu laden */
   async function saveAndReload(btn) {
+    // Demo-Modus: Speichern ist deaktiviert, damit Demo-Daten niemals die
+    // echten Backend-Daten überschreiben.
+    if (KK_DEMO_MODE) {
+      alert('Demo-Modus ist aktiv – es wird NICHTS gespeichert.\nBitte oben rechts „Demo-Daten" ausschalten, um echte Daten zu bearbeiten.');
+      return false;
+    }
     if (btn) { btn.disabled = true; btn.textContent = 'Speichern …'; }
+    // Status-basiertes Verschieben zwischen den Listen anwenden. Da dabei
+    // listenübergreifend Daten umziehen, wird das ganze Modul gespeichert.
+    const transform = KK_SAVE_TRANSFORMS[modKey];
+    if (transform) { try { transform(work); } catch (e) { console.warn('Transform (' + modKey + '):', e); } }
+    const savePaths = transform ? null : allowedPaths;
     if (kkSupabaseReady()) {
-      const ok = await kkPersistModule(modKey, work, allowedPaths);
+      const ok = await kkPersistModule(modKey, work, savePaths);
       if (!ok) { if (btn) { btn.disabled = false; btn.textContent = section ? 'Übernehmen' : 'Speichern'; } return false; }
       kkResetModule(modKey);       // lokale Überlagerung entfernen
     } else {

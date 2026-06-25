@@ -40,6 +40,10 @@ const KK = {
       { kunde: 'Stadtwerke Hellweg GmbH', leistung: 'Führung konkret – Inhouse, 2 Tage', betrag: 7800, geplant: '31.07.2026' },
       { kunde: 'AWO Bezirksverband', leistung: 'KomPass Führung – Gruppe K13, Module 1–3', betrag: 13100, geplant: '15.08.2026' }
     ],
+    bezahlteRechnungen: [
+      { nr: 'RE-2026-0118', kunde: 'Klinikum Nordstadt gGmbH', leistung: 'KomPass Führung – Gruppe K11, Module 1–3', betrag: 11800, bezahltAm: '12.04.2026', status: 'bezahlt' },
+      { nr: 'RE-2026-0129', kunde: 'Caritasverband Region Ost', leistung: 'Führung konkret – Inhouse, 2 Tage', betrag: 7600, bezahltAm: '28.04.2026', status: 'bezahlt' }
+    ],
     fixkosten: [
       { posten: 'Personalkosten (fest)', betrag: 18500, faellig: 'monatlich, zum 28.', art: 'fix' },
       { posten: 'Miete Trainingsräume + Büro', betrag: 4800, faellig: 'monatlich, zum 3.', art: 'fix' },
@@ -109,10 +113,10 @@ const KK = {
       { kunde: 'Kommunale Pflegeholding', produkt: 'KomPass Führung', tn: 9, module: 6, summe: 14800, datum: '05.06.2026', status: 'neu' }
     ],
     auftragsbestaetigungen: [
-      { kunde: 'Stadtwerke Hellweg GmbH', produkt: 'Führung konkret', tn: 10, summe: 7800, datum: '14.05.2026', start: '24.08.2026' },
-      { kunde: 'Berufsförderungswerk Mitte', produkt: 'BZTZ', tn: 16, summe: 37200, datum: '20.05.2026', start: '01.07.2026' },
-      { kunde: 'Hausarztpraxen Verbund West', produkt: 'mFA', tn: 8, summe: 9450, datum: '27.05.2026', start: '13.07.2026' },
-      { kunde: 'AWO Bezirksverband', produkt: 'KomPass Führung', tn: 12, summe: 26200, datum: '02.06.2026', start: '17.06.2026' }
+      { kunde: 'Stadtwerke Hellweg GmbH', produkt: 'Führung konkret', tn: 10, module: 2, summe: 7800, datum: '14.05.2026', start: '24.08.2026', status: 'angenommen' },
+      { kunde: 'Berufsförderungswerk Mitte', produkt: 'BZTZ', tn: 16, module: 8, summe: 37200, datum: '20.05.2026', start: '01.07.2026', status: 'angenommen' },
+      { kunde: 'Hausarztpraxen Verbund West', produkt: 'mFA', tn: 8, module: 4, summe: 9450, datum: '27.05.2026', start: '13.07.2026', status: 'angenommen' },
+      { kunde: 'AWO Bezirksverband', produkt: 'KomPass Führung', tn: 12, module: 6, summe: 26200, datum: '02.06.2026', start: '17.06.2026', status: 'angenommen' }
     ],
     anfragen: [
       { kunde: 'Stadtverwaltung Ostheim', thema: 'Führungskräfteentwicklung Verwaltung', eingang: '26.05.2026', kanal: 'Website' },
@@ -121,7 +125,14 @@ const KK = {
       { kunde: 'Seniorenresidenz Am Wall', thema: 'mFA-Qualifizierung, 6 TN', eingang: '03.06.2026', kanal: 'E-Mail' },
       { kunde: 'IT-Systemhaus Brandt', thema: 'KomPass Führung, Kostenrahmen?', eingang: '05.06.2026', kanal: 'Website' }
     ],
-    funnel: { anfragen: 23, angebote: 14, auftraege: 6, zeitraum: 'letzte 90 Tage' }
+    funnel: { anfragen: 23, angebote: 14, auftraege: 6, zeitraum: 'letzte 90 Tage' },
+    // Jahresvergleich: nur VORJAHRE werden hier gepflegt. Das aktuelle Jahr
+    // wird im Frontend automatisch aus angebote/auftragsbestaetigungen/anfragen
+    // des laufenden Jahres berechnet und ergänzt.
+    jahresvergleich: [
+      { jahr: '2024', angeboteTn: 142, angeboteModule: 58, angeboteSumme: 498200, auftraegeTn: 96, auftraegeModule: 39, auftraegeSumme: 312400, anfragenSumme: 64 },
+      { jahr: '2025', angeboteTn: 168, angeboteModule: 67, angeboteSumme: 561800, auftraegeTn: 112, auftraegeModule: 46, auftraegeSumme: 357900, anfragenSumme: 78 }
+    ]
   },
 
   /* ---------------- TRAININGS ---------------- */

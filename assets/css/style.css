@@ -301,9 +301,10 @@ a:hover { text-decoration: underline; }
 
 .main {
   flex: 1;
+  min-width: 0;
   margin-left: var(--sidebar-collapsed);
   padding: 0 36px 60px;
-  max-width: 1500px;
+  width: 100%;
 }
 
 /* ---------- Breadcrumb (Pfad oben auf jeder Unterseite) ---------- */
@@ -517,6 +518,23 @@ table.kk-table {
 .badge-gray { background: rgba(178, 178, 178, 0.18); color: var(--kk-text); }
 .badge-orange { background: var(--kk-peach); color: var(--kk-orange); }
 
+/* Status-Dropdown (Akquise) */
+.kk-status-select {
+  font-family: 'Roboto Condensed', Arial, sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--kk-dark);
+  background: var(--kk-white);
+  border: 1px solid var(--kk-border);
+  border-radius: 32.5px;
+  padding: 5px 12px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.kk-status-select:focus { border-color: var(--kk-orange); }
+.kk-status-select:hover { border-color: var(--kk-orange-light); }
+
 .ampel {
   display: inline-block;
   width: 13px; height: 13px;
@@ -724,6 +742,24 @@ table.edit-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
 }
 .edit-table input:focus { border-color: var(--kk-orange); }
 .edit-table input.kk-num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Dropdown im Editor (Status-Auswahl) */
+.kk-edit-select {
+  width: 100%;
+  min-width: 110px;
+  font-family: 'Roboto Condensed', Arial, sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--kk-dark);
+  padding: 7px 9px;
+  border: 1px solid var(--kk-border);
+  border-radius: 7px;
+  background: var(--kk-white);
+  cursor: pointer;
+  outline: none;
+}
+.kk-edit-select:focus { border-color: var(--kk-orange); }
+.edit-scalars .kk-edit-select { font-size: 0.98rem; }
 .edit-table .row-del {
   background: none; border: none; cursor: pointer;
   color: var(--kk-gray); font-size: 1.1rem; padding: 4px 8px; border-radius: 6px;

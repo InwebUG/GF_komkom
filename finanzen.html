@@ -59,6 +59,19 @@
     </div>
   </div>
 
+  <!-- Bezahlte Rechnungen -->
+  <div class="section-head">
+    <h2 class="section-title">Bezahlte Rechnungen</h2>
+    <button class="btn btn-sm btn-edit btn-edit-sec" onclick="kkOpenEditor('finanzen','rechnungen')">✎ bearbeiten</button>
+  </div>
+  <div class="card mb-20">
+    <div class="card-header">
+      <h2>Beglichene Rechnungen</h2>
+      <span class="hint">Über Status „bezahlt" hierher verschoben</span>
+    </div>
+    <div class="table-wrap"><table class="kk-table" id="tbl-bezahlte"></table></div>
+  </div>
+
   <!-- Fixkosten -->
   <div class="section-head">
     <h2 class="section-title">Anstehende Kosten</h2>
@@ -102,9 +115,26 @@ kkChartDefaults();
 kkBoot('finanzen', function () {
 const F = KK.finanzen;
 
+/* YTD-Zeile (laufendes Jahr) automatisch aus den Monatsumsätzen unten berechnen:
+   Umsatz/Kosten = Summe der eingetragenen Monatswerte, Gewinn = Umsatz − Kosten.
+   So bleibt die YTD-Summe oben immer konsistent mit dem Monatsverlauf. */
+const M = F.monatsumsatz2026 || {};
+const ytdUmsatz = (M.umsatz || []).reduce((s, v) => s + (v || 0), 0);
+const ytdKosten = (M.kosten || []).reduce((s, v) => s + (v || 0), 0);
+const ytdRow = F.jahresvergleich[F.jahresvergleich.length - 1];
+if (ytdRow) {
+  ytdRow.umsatz = ytdUmsatz;
+  ytdRow.kosten = ytdKosten;
+  ytdRow.gewinn = ytdUmsatz - ytdKosten;
+}
+
 /* KPI-Überblick (Hero) */
 const jAktuell = F.jahresvergleich[F.jahresvergleich.length - 1] || { umsatz: 0, gewinn: 0 };
-const sumOffenHero = F.offeneRechnungen.reduce((s, r) => s + (r.betrag || 0), 0);
+/* Offene Rechnungen = offene (versendete) + geplante Rechnungen, im Frontend summiert */
+const sumOffenVersendet = F.offeneRechnungen.reduce((s, r) => s + (r.betrag || 0), 0);
+const sumGeplantHero = F.geplanteRechnungen.reduce((s, r) => s + (r.betrag || 0), 0);
+const sumOffenHero = sumOffenVersendet + sumGeplantHero;
+const anzahlOffenHero = F.offeneRechnungen.length + F.geplanteRechnungen.length;
 const kostenHero = F.fixkosten.reduce((s, k) => s + (k.betrag || 0), 0);
 const liqMin = (F.liquiditaet.forecast && F.liquiditaet.forecast.minimum) || 0;
 document.getElementById('kpi-finanzen-hero').innerHTML = `
@@ -124,9 +154,9 @@ document.getElementById('kpi-finanzen-hero').innerHTML = `
     <div class="kpi-sub">${jAktuell.umsatz ? 'Marge ' + fmtPct(jAktuell.gewinn / jAktuell.umsatz * 100) : '—'}</div>
   </div>
   <div class="kpi kpi-yellow">
-    <div class="kpi-label">Offene Rechnungen</div>
+    <div class="kpi-label">Offene + geplante Rechnungen</div>
     <div class="kpi-value">${fmtEUR(sumOffenHero)}</div>
-    <div class="kpi-sub">voraussichtl. Einnahmen · ${F.offeneRechnungen.length} Rechnungen</div>
+    <div class="kpi-sub">voraussichtl. Einnahmen · ${anzahlOffenHero} Rechnungen (offen + geplant)</div>
   </div>
   <div class="kpi kpi-red">
     <div class="kpi-label">Anstehende Kosten</div>
@@ -197,6 +227,21 @@ document.getElementById('tbl-geplante').innerHTML =
     <td>${r.geplant}</td>
   </tr>`).join('') +
   `</tbody><tfoot><tr><td>Summe geplant</td><td class="num">${fmtEUR(sumGeplant)}</td><td>${F.geplanteRechnungen.length} Positionen</td></tr></tfoot>`;
+
+/* Bezahlte Rechnungen */
+const bezahlte = Array.isArray(F.bezahlteRechnungen) ? F.bezahlteRechnungen : [];
+const sumBezahlt = bezahlte.reduce((s, r) => s + (r.betrag || 0), 0);
+document.getElementById('tbl-bezahlte').innerHTML = bezahlte.length
+  ? '<thead><tr><th>Nr.</th><th>Kunde / Leistung</th><th class="num">Betrag</th><th>Bezahlt am</th><th>Status</th></tr></thead><tbody>' +
+    bezahlte.map(r => `<tr>
+      <td>${r.nr || '–'}</td>
+      <td><strong>${r.kunde || '–'}</strong>${r.leistung ? '<br><span class="muted">' + r.leistung + '</span>' : ''}</td>
+      <td class="num">${fmtEUR(r.betrag)}</td>
+      <td>${r.bezahltAm || '–'}</td>
+      <td><span class="badge badge-green">bezahlt</span></td>
+    </tr>`).join('') +
+    `</tbody><tfoot><tr><td colspan="2">Summe bezahlt</td><td class="num">${fmtEUR(sumBezahlt)}</td><td colspan="2">${bezahlte.length} Rechnungen</td></tr></tfoot>`
+  : '<tbody><tr><td class="empty-note">Noch keine bezahlten Rechnungen. Setze eine Rechnung im Editor auf Status „bezahlt".</td></tr></tbody>';
 
 /* Fixkosten */
 const sumFix = F.fixkosten.filter(k => k.art === 'fix').reduce((s, k) => s + k.betrag, 0);

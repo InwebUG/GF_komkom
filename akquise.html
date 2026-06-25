@@ -18,6 +18,19 @@
 
   <div class="grid grid-4 mb-20" id="kpi-akquise"></div>
 
+  <!-- Jahresvergleich -->
+  <div class="section-head">
+    <h2 class="section-title">Jahresvergleich</h2>
+    <button class="btn btn-sm btn-edit btn-edit-sec" onclick="kkOpenEditor('akquise','jahresvergleich')">✎ Vorjahre bearbeiten</button>
+  </div>
+  <div class="card mb-20">
+    <div class="card-header">
+      <h2>Angebote · Auftragsbestätigungen · Anfragen im Jahresvergleich</h2>
+      <span class="hint">Aktuelles Jahr wird automatisch aus den Einträgen berechnet</span>
+    </div>
+    <div class="table-wrap"><table class="kk-table" id="tbl-jahresvergleich"></table></div>
+  </div>
+
   <div class="grid grid-2 mb-20">
     <div class="card">
       <div class="card-header"><h2>Akquise-Funnel</h2>
@@ -62,33 +75,194 @@ kkShell({ title: 'Akquise', subtitle: 'Anfragen · Angebote · Auftragsbestätig
 kkChartDefaults();
 kkBoot('akquise', function () {
 const A = KK.akquise;
+if (!Array.isArray(A.auftragsbestaetigungen)) A.auftragsbestaetigungen = [];
+if (!Array.isArray(A.jahresvergleich)) A.jahresvergleich = [];
 
-const sumAngebote = A.angebote.reduce((s, a) => s + a.summe, 0);
-const sumAuftraege = A.auftragsbestaetigungen.reduce((s, a) => s + a.summe, 0);
+const STATUS_OPTS = ['neu', 'offen', 'abgelehnt', 'angenommen'];
 
-document.getElementById('kpi-akquise').innerHTML = `
-  <div class="kpi">
-    <div class="kpi-label">Offene Anfragen</div>
-    <div class="kpi-value">${A.anfragen.length}</div>
-    <div class="kpi-sub">neueste vom ${A.anfragen[A.anfragen.length - 1].eingang}</div>
-  </div>
-  <div class="kpi">
-    <div class="kpi-label">Angebote offen</div>
-    <div class="kpi-value">${A.angebote.length}</div>
-    <div class="kpi-sub">Volumen ${fmtEUR(sumAngebote)}</div>
-  </div>
-  <div class="kpi kpi-green">
-    <div class="kpi-label">Aufträge bestätigt (90 T.)</div>
-    <div class="kpi-value">${A.auftragsbestaetigungen.length}</div>
-    <div class="kpi-sub">Volumen ${fmtEUR(sumAuftraege)}</div>
-  </div>
-  <div class="kpi">
-    <div class="kpi-label">Abschlussquote</div>
-    <div class="kpi-value">${fmtPct(A.funnel.auftraege / A.funnel.angebote * 100)}</div>
-    <div class="kpi-sub">Aufträge / Angebote (${A.funnel.zeitraum})</div>
-  </div>`;
+/* Akquise-Daten persistieren (Supabase bzw. localStorage offline) – ohne Reload */
+async function persistAkquise() {
+  try {
+    if (kkSupabaseReady()) { await kkPersistModule('akquise', A); kkResetModule('akquise'); }
+    else { kkSaveModule('akquise', A); }
+  } catch (e) { console.warn('Akquise speichern:', e); }
+}
 
-/* Funnel als horizontales Balkendiagramm */
+/* Status-Dropdown (Auswahl: neu, offen, abgelehnt, angenommen) */
+function statusSelect(status, cls, idx) {
+  const opts = STATUS_OPTS.slice();
+  if (status && opts.indexOf(status) === -1) opts.unshift(status);   // unbekannten Bestandswert behalten
+  return '<select class="kk-status-select ' + cls + '" data-idx="' + idx + '">' +
+    opts.map(o => '<option value="' + o + '"' + (o === status ? ' selected' : '') + '>' + o + '</option>').join('') +
+    '</select>';
+}
+
+/* Angenommenes Angebot in die Auftragsbestätigungen übernehmen (mit allen Infos) */
+function uebernehmenInAuftraege(ang) {
+  const exists = A.auftragsbestaetigungen.some(x =>
+    x.kunde === ang.kunde && x.produkt === ang.produkt && x.summe === ang.summe && x.datum === ang.datum);
+  if (exists) return false;
+  A.auftragsbestaetigungen.push({
+    kunde: ang.kunde, produkt: ang.produkt, tn: ang.tn, module: ang.module,
+    summe: ang.summe, datum: ang.datum, start: ang.start || '–', status: 'angenommen'
+  });
+  return true;
+}
+
+/* Jahr aus deutschem Datum (TT.MM.JJJJ) lesen */
+function parseYear(d) { const m = String(d || '').match(/(\d{4})/); return m ? parseInt(m[1], 10) : null; }
+const sumBy = (arr, k) => arr.reduce((s, x) => s + (Number(x[k]) || 0), 0);
+
+/* Aktuelles Jahr automatisch erkennen (größtes Jahr in den Einträgen) */
+function aktuellesJahr() {
+  const years = []
+    .concat(A.angebote.map(a => parseYear(a.datum)))
+    .concat(A.auftragsbestaetigungen.map(a => parseYear(a.datum)))
+    .concat(A.anfragen.map(a => parseYear(a.eingang)))
+    .filter(Boolean);
+  return years.length ? Math.max.apply(null, years) : new Date().getFullYear();
+}
+
+/* Jahresvergleich-Tabelle: Vorjahre (gepflegt) + aktuelles Jahr (live berechnet) */
+function renderJahresvergleich() {
+  const cy = aktuellesJahr();
+  const angCY = A.angebote.filter(a => parseYear(a.datum) === cy);
+  const aufCY = A.auftragsbestaetigungen.filter(a => parseYear(a.datum) === cy);
+  const anfCY = A.anfragen.filter(a => parseYear(a.eingang) === cy);
+  const currentRow = {
+    jahr: cy + ' (aktuell)',
+    angeboteTn: sumBy(angCY, 'tn'), angeboteModule: sumBy(angCY, 'module'), angeboteSumme: sumBy(angCY, 'summe'),
+    auftraegeTn: sumBy(aufCY, 'tn'), auftraegeModule: sumBy(aufCY, 'module'), auftraegeSumme: sumBy(aufCY, 'summe'),
+    anfragenSumme: anfCY.length,
+    _aktuell: true
+  };
+  // Vorjahre ohne das aktuelle Jahr (das wird live ergänzt)
+  const vorjahre = A.jahresvergleich.filter(r => parseYear(r.jahr) !== cy);
+  const rows = vorjahre.concat([currentRow]);
+
+  document.getElementById('tbl-jahresvergleich').innerHTML =
+    '<thead>' +
+      '<tr>' +
+        '<th rowspan="2">Jahr</th>' +
+        '<th colspan="3" style="text-align:center">Angebote</th>' +
+        '<th colspan="3" style="text-align:center">Auftragsbestätigungen</th>' +
+        '<th rowspan="2" class="num">Anfragen</th>' +
+      '</tr>' +
+      '<tr>' +
+        '<th class="num">TN</th><th class="num">Module</th><th class="num">Summe</th>' +
+        '<th class="num">TN</th><th class="num">Module</th><th class="num">Summe</th>' +
+      '</tr>' +
+    '</thead><tbody>' +
+    rows.map(r => `<tr>
+      <td><strong>${r.jahr}</strong></td>
+      <td class="num">${fmtNum(r.angeboteTn || 0)}</td>
+      <td class="num">${fmtNum(r.angeboteModule || 0)}</td>
+      <td class="num">${fmtEUR(r.angeboteSumme || 0)}</td>
+      <td class="num">${fmtNum(r.auftraegeTn || 0)}</td>
+      <td class="num">${fmtNum(r.auftraegeModule || 0)}</td>
+      <td class="num">${fmtEUR(r.auftraegeSumme || 0)}</td>
+      <td class="num">${fmtNum(r.anfragenSumme || 0)}</td>
+    </tr>`).join('') + '</tbody>';
+}
+
+/* KPIs + Angebote + Auftragsbestätigungen (nach Statusänderung neu zeichnen) */
+function renderTables() {
+  const sumAngebote = sumBy(A.angebote, 'summe');
+  const sumAuftraege = sumBy(A.auftragsbestaetigungen, 'summe');
+
+  document.getElementById('kpi-akquise').innerHTML = `
+    <div class="kpi">
+      <div class="kpi-label">Offene Anfragen</div>
+      <div class="kpi-value">${A.anfragen.length}</div>
+      <div class="kpi-sub">neueste vom ${A.anfragen.length ? A.anfragen[A.anfragen.length - 1].eingang : '–'}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Angebote</div>
+      <div class="kpi-value">${A.angebote.length}</div>
+      <div class="kpi-sub">Volumen ${fmtEUR(sumAngebote)}</div>
+    </div>
+    <div class="kpi kpi-green">
+      <div class="kpi-label">Auftragsbestätigungen</div>
+      <div class="kpi-value">${A.auftragsbestaetigungen.length}</div>
+      <div class="kpi-sub">Volumen ${fmtEUR(sumAuftraege)}</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Abschlussquote</div>
+      <div class="kpi-value">${A.angebote.length ? fmtPct(A.auftragsbestaetigungen.length / A.angebote.length * 100) : '—'}</div>
+      <div class="kpi-sub">Aufträge / Angebote</div>
+    </div>`;
+
+  /* Angebote – mit Status-Dropdown */
+  document.getElementById('tbl-angebote').innerHTML =
+    '<thead><tr><th>Kunde</th><th>Produkt</th><th class="num">TN</th><th class="num">Module</th><th class="num">Summe</th><th>Versendet</th><th>Status</th></tr></thead><tbody>' +
+    A.angebote.map((a, i) => `<tr>
+      <td><strong>${a.kunde}</strong></td>
+      <td>${a.produkt}</td>
+      <td class="num">${a.tn}</td>
+      <td class="num">${a.module}</td>
+      <td class="num">${fmtEUR(a.summe)}</td>
+      <td>${a.datum}</td>
+      <td>${statusSelect(a.status, 'js-ang-status', i)}</td>
+    </tr>`).join('') +
+    `</tbody><tfoot><tr><td colspan="4">Summe (${A.angebote.length} Angebote)</td><td class="num">${fmtEUR(sumAngebote)}</td><td colspan="2"></td></tr></tfoot>`;
+
+  /* Auftragsbestätigungen – jetzt mit Spalten Module und Status */
+  document.getElementById('tbl-auftraege').innerHTML =
+    '<thead><tr><th>Kunde</th><th>Produkt</th><th class="num">TN</th><th class="num">Module</th><th class="num">Summe</th><th>Bestätigt am</th><th>Start</th><th>Status</th></tr></thead><tbody>' +
+    A.auftragsbestaetigungen.map((a, i) => `<tr>
+      <td><strong>${a.kunde}</strong></td>
+      <td>${a.produkt}</td>
+      <td class="num">${a.tn}</td>
+      <td class="num">${a.module != null ? a.module : '–'}</td>
+      <td class="num">${fmtEUR(a.summe)}</td>
+      <td>${a.datum}</td>
+      <td><span class="badge badge-green">${a.start || '–'}</span></td>
+      <td>${statusSelect(a.status || 'angenommen', 'js-auf-status', i)}</td>
+    </tr>`).join('') +
+    `</tbody><tfoot><tr><td colspan="4">Summe (${A.auftragsbestaetigungen.length} Aufträge)</td><td class="num">${fmtEUR(sumAuftraege)}</td><td colspan="3"></td></tr></tfoot>`;
+
+  /* Status-Dropdowns: Angebote */
+  document.querySelectorAll('#tbl-angebote .js-ang-status').forEach(sel => {
+    sel.addEventListener('change', async () => {
+      const i = parseInt(sel.dataset.idx, 10);
+      A.angebote[i].status = sel.value;
+      let hinweis = 'Status gespeichert: ' + sel.value;
+      if (sel.value === 'angenommen') {
+        const added = uebernehmenInAuftraege(A.angebote[i]);
+        hinweis = added
+          ? '„' + A.angebote[i].kunde + '“ in Auftragsbestätigungen übernommen'
+          : 'Status „angenommen“ – bereits in Auftragsbestätigungen vorhanden';
+      }
+      await persistAkquise();
+      renderTables();
+      renderJahresvergleich();
+      kkToast(hinweis);
+    });
+  });
+
+  /* Status-Dropdowns: Auftragsbestätigungen */
+  document.querySelectorAll('#tbl-auftraege .js-auf-status').forEach(sel => {
+    sel.addEventListener('change', async () => {
+      const i = parseInt(sel.dataset.idx, 10);
+      A.auftragsbestaetigungen[i].status = sel.value;
+      await persistAkquise();
+      renderJahresvergleich();
+      kkToast('Status gespeichert: ' + sel.value);
+    });
+  });
+}
+
+/* Kleiner Bestätigungs-Toast (wiederverwendet den vorhandenen Toast-Container) */
+function kkToast(text) {
+  let toast = document.getElementById('kk-toast');
+  if (!toast) { toast = document.createElement('div'); toast.id = 'kk-toast'; document.body.appendChild(toast); }
+  toast.innerHTML = '<span class="toast-dot"></span><span>' + text + '</span>';
+  toast.classList.add('show');
+  clearTimeout(window.__kkToastTimer);
+  window.__kkToastTimer = setTimeout(() => toast.classList.remove('show'), 3200);
+}
+
+/* Funnel als horizontales Balkendiagramm (einmalig) */
 new Chart(document.getElementById('chart-funnel'), {
   type: 'bar',
   data: {
@@ -107,6 +281,7 @@ new Chart(document.getElementById('chart-funnel'), {
   }
 });
 
+/* Anfragen (einmalig) */
 document.getElementById('tbl-anfragen').innerHTML =
   '<thead><tr><th>Interessent</th><th>Thema</th><th>Eingang</th><th>Kanal</th></tr></thead><tbody>' +
   A.anfragen.map(a => `<tr>
@@ -116,36 +291,8 @@ document.getElementById('tbl-anfragen').innerHTML =
     <td><span class="badge badge-gray">${a.kanal}</span></td>
   </tr>`).join('') + '</tbody>';
 
-const statusBadge = (s) => ({
-  neu: '<span class="badge badge-orange">neu</span>',
-  offen: '<span class="badge badge-yellow">offen</span>',
-  nachgefasst: '<span class="badge badge-gray">nachgefasst</span>'
-}[s] || s);
-
-document.getElementById('tbl-angebote').innerHTML =
-  '<thead><tr><th>Kunde</th><th>Produkt</th><th class="num">TN</th><th class="num">Module</th><th class="num">Summe</th><th>Versendet</th><th>Status</th></tr></thead><tbody>' +
-  A.angebote.map(a => `<tr>
-    <td><strong>${a.kunde}</strong></td>
-    <td>${a.produkt}</td>
-    <td class="num">${a.tn}</td>
-    <td class="num">${a.module}</td>
-    <td class="num">${fmtEUR(a.summe)}</td>
-    <td>${a.datum}</td>
-    <td>${statusBadge(a.status)}</td>
-  </tr>`).join('') +
-  `</tbody><tfoot><tr><td colspan="4">Summe (${A.angebote.length} Angebote)</td><td class="num">${fmtEUR(sumAngebote)}</td><td colspan="2"></td></tr></tfoot>`;
-
-document.getElementById('tbl-auftraege').innerHTML =
-  '<thead><tr><th>Kunde</th><th>Produkt</th><th class="num">TN</th><th class="num">Summe</th><th>Bestätigt am</th><th>Start</th></tr></thead><tbody>' +
-  A.auftragsbestaetigungen.map(a => `<tr>
-    <td><strong>${a.kunde}</strong></td>
-    <td>${a.produkt}</td>
-    <td class="num">${a.tn}</td>
-    <td class="num">${fmtEUR(a.summe)}</td>
-    <td>${a.datum}</td>
-    <td><span class="badge badge-green">${a.start}</span></td>
-  </tr>`).join('') +
-  `</tbody><tfoot><tr><td colspan="3">Summe (${A.auftragsbestaetigungen.length} Aufträge)</td><td class="num">${fmtEUR(sumAuftraege)}</td><td colspan="2"></td></tr></tfoot>`;
+renderTables();
+renderJahresvergleich();
 });
 </script>
 </body>
