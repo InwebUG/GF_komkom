@@ -4,7 +4,10 @@
 
 /* ---------- Login-Guard (Supabase-Session) ---------- */
 (function () {
-  const isLogin = /(^|\/)index\.html$/.test(location.pathname) || /\/$/.test(location.pathname);
+  // Login-Seite erkennen – auch bei „sauberen" URLs ohne .html (Cloudflare Pages
+  // macht aus /index.html ein /index bzw. /). Sonst Redirect-Schleife beim Logout.
+  const page = (location.pathname.split('/').pop() || '').toLowerCase();
+  const isLogin = page === '' || page === 'index' || page === 'index.html';
   if (isLogin) return;
   if (typeof sb === 'undefined' || !sb) {
     // Offline-/Demo-Fallback ohne Supabase-Lib
@@ -132,7 +135,12 @@ const KK_NAV = [
 /* ---------- Shell (Sidebar + Topbar) rendern ---------- */
 function kkShell(opts) {
   const { title, subtitle } = opts;
-  const here = location.pathname.split('/').pop() || 'index.html';
+  // Seitennamen ermitteln. Hoster wie Cloudflare Pages liefern „saubere" URLs
+  // ohne .html (z. B. /finanzen statt /finanzen.html) – daher .html ergänzen,
+  // sonst greifen KK_PAGE_MODULE / aktiver Nav-Zustand / Demo-Schalter nicht.
+  let here = location.pathname.split('/').pop() || 'index.html';
+  if (here === '') here = 'index.html';
+  if (!/\.html$/i.test(here)) here += '.html';
 
   const navHtml = KK_NAV.filter((item) => !item.hidden).map((item) => {
     if (item.sec) return '<div class="sidebar-section">' + item.sec + '</div>';
