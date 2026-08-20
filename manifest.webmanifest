@@ -1,0 +1,13 @@
+{
+  "name": "Kompetenz Kompanie Dashboard",
+  "short_name": "KomKom",
+  "start_url": "/generator.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#FFF6F0",
+  "theme_color": "#E47A3D",
+  "icons": [
+    { "src": "/favicon.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png", "purpose": "any" }
+  ]
+}

@@ -233,7 +233,10 @@ a:hover { text-decoration: underline; }
   align-items: center;
   justify-content: center;
   padding: 16px 12px;
-  min-height: 64px;
+  /* Feste Höhe (Wordmark-Maximum 64px + 2×16px Padding), damit der Trennstrich
+     und die Nav-Einträge beim Auf-/Zuklappen vertikal stabil bleiben. */
+  height: 96px;
+  flex-shrink: 0;
   border-bottom: 1px solid rgba(253, 253, 253, 0.12);
   text-decoration: none;
 }
@@ -601,7 +604,7 @@ table.kk-table {
   position: fixed;
   bottom: 28px;
   left: 50%;
-  transform: translateX(-50%) translateY(120%);
+  transform: translateX(-50%) translateY(calc(100% + 48px));
   background: var(--kk-dark);
   color: var(--kk-offwhite);
   border-radius: 32.5px;
@@ -609,17 +612,27 @@ table.kk-table {
   font-size: 0.95rem;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
   z-index: 999;
-  transition: transform 0.3s ease;
+  /* Weit genug nach unten UND ausgeblendet: bottom:28px bedeutet, dass eine
+     Verschiebung um die eigene Höhe den Toast nicht ganz aus dem Bild trägt —
+     ein Streifen samt Schatten blieb sonst stehen. */
+  opacity: 0;
+  visibility: hidden;
+  transition: transform 0.3s ease, opacity 0.3s ease, visibility 0s linear 0.3s;
   display: flex;
   align-items: center;
   gap: 10px;
   max-width: 90vw;
 }
-#kk-toast.show { transform: translateX(-50%) translateY(0); }
+#kk-toast.show {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+  visibility: visible;
+  transition: transform 0.3s ease, opacity 0.3s ease, visibility 0s;
+}
 #kk-toast .toast-dot {
   width: 9px; height: 9px;
   border-radius: 50%;
-  background: var(--kk-orange);
+  background: var(--kk-green);
   flex-shrink: 0;
 }
 

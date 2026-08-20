@@ -1,0 +1,2876 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PPTX-Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#E47A3D">
+<link rel="stylesheet" href="assets/css/style.css">
+<style>
+/* ---------- Seitenspezifisch: PPTX-Generator ---------- */
+/* hidden-Attribut muss auch gegen display:flex-Regeln gewinnen
+   (sonst ist z. B. der Kontingent-Hinweis dauerhaft sichtbar) */
+[hidden] { display: none !important; }
+.gen-help { max-width: 720px; margin-bottom: 6px; }
+.gen-field { margin-top: 20px; }
+.gen-field label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--kk-text);
+  margin-bottom: 6px;
+}
+.gen-field input[type="text"],
+.gen-field select,
+.gen-field textarea,
+.gen-feedback textarea {
+  width: 100%;
+  font-family: 'Roboto Condensed', Arial, sans-serif;
+  font-size: 1rem;
+  color: var(--kk-dark);
+  padding: 12px 15px;
+  border: 1px solid var(--kk-border);
+  border-radius: 10px;
+  background: var(--kk-offwhite);
+  outline: none;
+  resize: vertical;
+  transition: border-color 0.2s;
+}
+.gen-field input[type="text"]:focus,
+.gen-field select:focus,
+.gen-field textarea:focus,
+.gen-feedback textarea:focus { border-color: var(--kk-orange); background: var(--kk-white); }
+.gen-field textarea { min-height: 220px; line-height: 1.55; }
+.gen-note { margin-top: 6px; font-size: 0.82rem; color: var(--kk-gray); }
+.gen-foot { margin-top: 24px; display: flex; align-items: center; justify-content: flex-end; gap: 12px; flex-wrap: wrap; }
+.gen-error {
+  margin-top: 16px;
+  color: var(--kk-red);
+  background: rgba(204, 75, 59, 0.08);
+  border: 1px solid rgba(204, 75, 59, 0.3);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 0.92rem;
+}
+.gen-hint {
+  margin-top: 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--kk-peach);
+  border: 1px dashed var(--kk-orange-light);
+  border-radius: 10px;
+  padding: 12px 16px;
+  color: var(--kk-orange-dark);
+  font-size: 0.92rem;
+}
+.gen-hint .badge { flex-shrink: 0; margin-top: 1px; }
+
+/* Übersicht: großer Aufruf zur neuen Präsentation */
+.gen-cta { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; margin-top: 30px; }
+.gen-cta .btn { justify-content: center; }
+
+/* Loader (Job-Ansicht) */
+.gen-loader { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 90px 20px; }
+.gen-spinner {
+  width: 54px; height: 54px;
+  border-radius: 50%;
+  border: 5px solid var(--kk-peach);
+  border-top-color: var(--kk-orange);
+  animation: gen-spin 1s linear infinite;
+}
+@keyframes gen-spin { to { transform: rotate(360deg); } }
+.gen-bar {
+  width: 100%; max-width: 460px; margin-top: 26px;
+  height: 8px; border-radius: 999px; background: var(--kk-peach); overflow: hidden;
+}
+.gen-bar > i {
+  display: block; height: 100%; width: 0;
+  background: var(--kk-orange); border-radius: 999px;
+  transition: width 0.6s ease;
+}
+.gen-bar-zahl {
+  margin-top: 8px; font-size: 0.85rem; color: var(--kk-gray);
+  font-variant-numeric: tabular-nums;
+}
+.gen-loader p { margin-top: 24px; font-size: 1.15rem; color: var(--kk-dark); font-weight: 500; min-height: 1.6em; }
+.gen-detail { margin-top: 6px; font-size: 0.92rem; color: var(--kk-gray); min-height: 1.4em; }
+.gen-loader .gen-hint { max-width: 520px; }
+.gen-joberror { padding: 50px 20px; text-align: center; }
+.gen-joberror h3 { color: var(--kk-red); margin-bottom: 10px; }
+.gen-joberror .gen-errmsg {
+  max-width: 640px;
+  margin: 0 auto 22px;
+  color: var(--kk-text);
+  background: rgba(204, 75, 59, 0.07);
+  border: 1px solid rgba(204, 75, 59, 0.25);
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 0.92rem;
+  word-break: break-word;
+}
+.gen-joberror .actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+/* Review (Vorschau) */
+.review-bar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: var(--kk-cream);
+  padding: 14px 0 12px;
+  border-bottom: 1px solid var(--kk-border);
+  margin-bottom: 8px;
+}
+.review-bar .row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.review-title { font-size: 1.35rem; font-weight: 700; color: var(--kk-dark); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.review-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.review-summary { display: flex; align-items: center; gap: 12px; margin-top: 10px; color: var(--kk-text); font-size: 0.9rem; flex-wrap: wrap; }
+.review-summary .pill {
+  background: var(--kk-white);
+  border: 1px solid var(--kk-border);
+  border-radius: 32.5px;
+  padding: 3px 12px;
+  font-weight: 500;
+}
+.review-summary .pill b { color: var(--kk-dark); }
+.scrollpos { margin-left: auto; font-size: 0.85rem; color: var(--kk-gray); font-weight: 500; }
+
+.slide-block { margin-top: 30px; }
+.slide-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.folie-no {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--kk-orange);
+  background: var(--kk-peach);
+  border-radius: 6px;
+  padding: 4px 10px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.slide-title { font-size: 1.1rem; font-weight: 500; color: var(--kk-dark); }
+.chosen-hint { margin-left: auto; font-size: 0.85rem; color: var(--kk-text); }
+.chosen-hint b { color: var(--kk-orange-dark); }
+
+.variant-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.variant {
+  background: var(--kk-white);
+  border: 1px solid var(--kk-border);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.variant.sel { border-color: var(--kk-orange); box-shadow: 0 6px 24px rgba(228, 122, 61, 0.16); }
+.variant-top { display: flex; align-items: center; justify-content: space-between; padding: 11px 16px; border-bottom: 1px solid var(--kk-border); gap: 10px; }
+.variant-name { font-size: 0.9rem; font-weight: 700; letter-spacing: 0.5px; color: var(--kk-dark); display: flex; align-items: center; gap: 8px; }
+.variant-name .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--kk-gray); flex-shrink: 0; }
+.variant.sel .variant-name .dot { background: var(--kk-orange); }
+.icon-actions { display: flex; gap: 4px; }
+.icon-btn {
+  border: none;
+  background: transparent;
+  color: var(--kk-text);
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.icon-btn:hover { background: var(--kk-peach); color: var(--kk-orange-dark); }
+/* Folie hat ein hochgeladenes Bild — im geschlossenen Zustand erkennbar */
+.icon-btn.has-img { background: var(--kk-peach); color: var(--kk-orange-dark); border-color: var(--kk-orange-light); }
+.simg-current { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 4px; }
+.simg-current img { width: 190px; aspect-ratio: 16/9; object-fit: cover; border-radius: 8px; border: 1px solid var(--kk-border); }
+.simg-current .meta { font-size: 0.86rem; color: var(--kk-gray); line-height: 1.6; }
+.simg-tabs { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+/* Zwei Mediatheken nebeneinander — deshalb der breitere Dialog */
+.simg-zwei { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.simg-spalte > h4 {
+  margin: 0 0 8px; font-size: 0.86rem; text-transform: uppercase;
+  letter-spacing: 0.5px; color: var(--kk-gray);
+}
+.simg-gal { max-height: 330px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 10px; padding: 4px; }
+/* Ablagefläche über das ganze Fenster */
+.simg-vollflaeche {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(45, 41, 38, 0.72);
+  display: flex; align-items: center; justify-content: center;
+  padding: 40px;
+}
+.simg-vollflaeche .rahmen {
+  border: 3px dashed var(--kk-white); border-radius: 20px;
+  width: 100%; height: 100%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  color: var(--kk-white); text-align: center; gap: 10px;
+}
+.simg-vollflaeche .rahmen strong { font-size: 1.5rem; }
+@media (max-width: 820px) { .simg-zwei { grid-template-columns: 1fr; } }
+.simg-pick { border: 2px solid var(--kk-border); border-radius: 8px; overflow: hidden; cursor: pointer; background: var(--kk-white); text-align: left; padding: 0; font-family: inherit; }
+.simg-pick:hover { border-color: var(--kk-orange); }
+.simg-pick.on { border-color: var(--kk-orange); box-shadow: 0 0 0 2px var(--kk-peach); }
+.simg-pick img { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; background: var(--kk-offwhite); }
+.simg-pick .cap { padding: 6px 8px; font-size: 0.78rem; color: var(--kk-dark); line-height: 1.35; }
+.simg-gal-empty { font-size: 0.88rem; color: var(--kk-gray); padding: 10px 2px; }
+.icon-btn svg { width: 17px; height: 17px; stroke: currentColor; fill: none; }
+.thumb { position: relative; aspect-ratio: 16 / 9; background: var(--kk-peach); cursor: zoom-in; overflow: hidden; }
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.thumb .zoom-cue {
+  position: absolute; right: 10px; bottom: 10px;
+  background: rgba(54, 54, 54, 0.72); color: #fff;
+  border-radius: 8px; padding: 5px 9px;
+  font-size: 0.72rem; font-weight: 600;
+  opacity: 0; transition: opacity 0.15s;
+}
+.thumb:hover .zoom-cue { opacity: 1; }
+.variant-foot { padding: 12px 16px; }
+.select-btn {
+  width: 100%;
+  border-radius: 32.5px;
+  border: 1px solid var(--kk-border);
+  background: var(--kk-white);
+  color: var(--kk-dark);
+  font-family: 'Roboto Condensed', Arial, sans-serif;
+  font-weight: 700;
+  font-size: 0.92rem;
+  padding: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.select-btn:hover { border-color: var(--kk-orange); color: var(--kk-orange-dark); }
+.variant.sel .select-btn { background: var(--kk-orange); color: var(--kk-offwhite); border-color: var(--kk-orange); }
+.variant.sel .select-btn:hover { background: var(--kk-orange-dark); }
+.end-note { text-align: center; color: var(--kk-gray); font-size: 0.85rem; margin: 40px 0 10px; }
+.gen-feedback { margin-top: 30px; }
+.gen-feedback textarea { min-height: 120px; }
+.gen-feedback p { margin-bottom: 12px; }
+
+/* Übersichtsliste */
+#tbl-decks tbody tr.clickable { cursor: pointer; }
+
+/* Lightbox */
+.lightbox {
+  position: fixed; inset: 0;
+  background: rgba(30, 26, 22, 0.86);
+  z-index: 900;
+  display: none;
+  align-items: center; justify-content: center; flex-direction: column;
+  padding: 36px;
+}
+.lightbox.open { display: flex; }
+.lb-stage { max-width: 92vw; max-height: 80vh; box-shadow: 0 12px 40px rgba(54, 54, 54, 0.18); border-radius: 6px; overflow: hidden; background: #fff; }
+.lb-stage img { display: block; max-width: 92vw; max-height: 80vh; object-fit: contain; }
+.lb-cap { color: #fff; margin-top: 18px; font-size: 0.95rem; font-weight: 500; letter-spacing: 0.3px; text-align: center; }
+.lb-cap span { color: var(--kk-orange-light); }
+.lb-close, .lb-nav {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.12);
+  border: none; color: #fff;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.lb-close:hover, .lb-nav:hover { background: rgba(255, 255, 255, 0.25); }
+.lb-close { top: 22px; right: 26px; width: 44px; height: 44px; font-size: 1.4rem; }
+.lb-nav { top: 50%; transform: translateY(-50%); width: 52px; height: 52px; font-size: 1.6rem; }
+.lb-prev { left: 24px; }
+.lb-next { right: 24px; }
+.lb-hint { position: absolute; bottom: 22px; color: rgba(255, 255, 255, 0.5); font-size: 0.75rem; letter-spacing: 0.5px; }
+
+/* Bilder-Bibliothek ('#referenzen') */
+.ref-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.ref-grid2 .gen-field { margin-top: 16px; }
+.ref-drop {
+  margin-top: 6px;
+  border: 2px dashed var(--kk-border);
+  border-radius: 12px;
+  background: var(--kk-offwhite);
+  padding: 26px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+.ref-drop:hover, .ref-drop.over { border-color: var(--kk-orange); background: var(--kk-peach); }
+.ref-drop p { margin: 0; color: var(--kk-gray); font-size: 0.92rem; }
+.ref-drop strong { color: var(--kk-dark); }
+.ref-preview { display: flex; align-items: flex-start; gap: 16px; margin-top: 14px; }
+.ref-preview img {
+  width: 240px; aspect-ratio: 16 / 9; object-fit: cover;
+  border-radius: 10px; border: 1px solid var(--kk-border); background: var(--kk-offwhite);
+}
+.ref-preview .meta { font-size: 0.88rem; color: var(--kk-gray); line-height: 1.7; }
+.ref-preview .meta b { color: var(--kk-dark); }
+.ref-check { display: flex; align-items: flex-start; gap: 10px; margin-top: 18px; font-size: 0.92rem; color: var(--kk-text); }
+.ref-check input { margin-top: 3px; flex-shrink: 0; }
+
+.ref-kat { margin-top: 26px; }
+.ref-kat:first-child { margin-top: 4px; }
+.ref-kat-head { display: flex; align-items: baseline; gap: 10px; padding-bottom: 8px; margin-bottom: 14px; border-bottom: 1px solid var(--kk-border); }
+.ref-kat-head h3 { font-size: 1.05rem; color: var(--kk-dark); margin: 0; }
+.ref-kat-head .kat-sub { font-size: 0.84rem; color: var(--kk-gray); }
+.ref-kat-head .kat-n { margin-left: auto; font-size: 0.84rem; color: var(--kk-gray); }
+.ref-lib-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; }
+.ref-card { border: 1px solid var(--kk-border); border-radius: 12px; overflow: hidden; background: var(--kk-white); display: flex; flex-direction: column; }
+.ref-card.inaktiv { opacity: 0.55; }
+.ref-card img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; display: block; background: var(--kk-offwhite); cursor: zoom-in; }
+.ref-card .body { padding: 12px 14px 14px; flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.ref-card h4 { margin: 0; font-size: 1rem; color: var(--kk-dark); }
+.ref-card .pair { font-size: 0.86rem; color: var(--kk-text); }
+.ref-card .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.ref-card .tag {
+  font-size: 0.74rem; letter-spacing: 0.3px;
+  background: var(--kk-offwhite); border: 1px solid var(--kk-border);
+  border-radius: 999px; padding: 2px 9px; color: var(--kk-gray);
+}
+.ref-card .badges { display: flex; gap: 6px; flex-wrap: wrap; }
+.ref-card .actions { display: flex; gap: 8px; margin-top: auto; padding-top: 4px; flex-wrap: wrap; }
+
+/* Keine Insel, nur die beiden Knöpfe — der Schatten hebt sie gerade so weit
+   vom Folieninhalt ab, dass sie nicht darin verschwinden. */
+.kk-insel {
+  position: fixed;
+  right: 22px; bottom: 22px;
+  width: fit-content;
+  z-index: 60;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: calc(100vw - 44px);
+}
+.kk-insel .btn {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+}
+.kk-insel .btn-outline {
+  background: var(--kk-white);
+}
+.kk-insel .insel-hinweis {
+  /* width:0 + min-width:100% — der Hinweis zaehlt nicht zur Breitenberechnung
+     des Kastens, fuellt aber die Zeile aus. Ohne das bestimmte der laengere
+     Hinweistext die Breite, und der weisse Kasten war breiter als die Knoepfe
+     darueber. */
+  width: 0;
+  min-width: 100%;
+  flex-basis: 100%;
+  box-sizing: border-box;
+  text-align: right;
+  font-size: 0.78rem;
+  color: var(--kk-text);
+  background: var(--kk-white);
+  border-radius: 8px;
+  padding: 3px 9px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+}
+.kk-insel .insel-hinweis:empty { display: none; box-shadow: none; }
+.kk-insel .btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+@media (max-width: 620px) {
+  .kk-insel { right: 12px; bottom: 12px; }
+}
+
+.slide-block.hervorgehoben {
+  animation: kk-hervor 2.6s ease;
+  border-radius: 14px;
+}
+@keyframes kk-hervor {
+  0%, 60% { box-shadow: 0 0 0 3px var(--kk-orange); }
+  100%    { box-shadow: 0 0 0 3px rgba(228, 122, 61, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .slide-block.hervorgehoben { animation: none; box-shadow: 0 0 0 3px var(--kk-orange); }
+}
+.imp-status { display: flex; align-items: center; gap: 16px; padding: 8px 0 18px; }
+.imp-vorschau {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px;
+}
+.imp-vorschau figure { margin: 0; }
+.imp-vorschau img {
+  width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block;
+  border: 1px solid var(--kk-border); border-radius: 10px; background: var(--kk-offwhite);
+}
+.imp-vorschau figcaption { margin-top: 5px; font-size: 0.78rem; color: var(--kk-gray); }
+
+.mini-bar {
+  display: inline-block; vertical-align: middle;
+  width: 78px; height: 6px; margin-left: 10px;
+  border-radius: 999px; background: var(--kk-peach); overflow: hidden;
+}
+.mini-bar > i { display: block; height: 100%; background: var(--kk-orange); border-radius: 999px; }
+.mini-bar-zahl { margin-left: 6px; font-size: 0.78rem; color: var(--kk-gray); font-variant-numeric: tabular-nums; }
+
+.gen-loeschen { border-color: rgba(204, 75, 59, 0.35); }
+.gen-loeschen h2 { color: var(--kk-red); }
+.gen-loeschen #btn-deck-loeschen { border-color: var(--kk-red); color: var(--kk-red); }
+.gen-loeschen #btn-deck-loeschen:hover { background: var(--kk-red); color: var(--kk-white); }
+.loesch-titel {
+  display: inline-block;
+  font-weight: 700;
+  color: var(--kk-dark);
+  background: var(--kk-offwhite);
+  border: 1px solid var(--kk-border);
+  border-radius: 6px;
+  padding: 1px 8px;
+}
+.variant.verworfen { opacity: 0.5; }
+.variant.verworfen:hover { opacity: 1; }
+.variant.verworfen .thumb img { filter: grayscale(0.55); }
+
+@media (max-width: 1080px) { .variant-grid { grid-template-columns: 1fr; } }
+@media (max-width: 720px) { .ref-grid2 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="app">
+<main class="main">
+
+  <!-- Ansicht 1: Übersicht (Startansicht) -->
+  <section id="view-home" hidden>
+    <div class="card">
+      <div class="card-header">
+        <h2>Meine Präsentationen</h2>
+        <span class="hint">Klick auf eine Präsentation öffnet die neueste Version</span>
+      </div>
+      <div class="table-wrap"><table class="kk-table" id="tbl-decks"></table></div>
+      <div class="empty-note" id="decks-empty" hidden>Noch keine Präsentationen vorhanden.</div>
+    </div>
+    <div class="gen-cta">
+      <button class="btn btn-lg" onclick="location.hash = '#neu'">+ Neue Präsentation erstellen</button>
+      <button class="btn btn-lg" onclick="location.hash = '#import'">↑ Eigene Präsentation hochladen</button>
+    </div>
+    <div class="gen-cta" style="margin-top:12px">
+      <button class="btn btn-lg btn-outline" onclick="location.hash = '#referenzen'">Bilder-Bibliothek</button>
+    </div>
+  </section>
+
+  <!-- Ansicht 2: Erstellung ('#neu') -->
+  <section id="view-new" hidden>
+    <div class="card">
+      <div class="card-header"><h2>Neue Präsentation erstellen</h2></div>
+      <p class="gen-help">Füge deinen Text bzw. deine Storyboard-Matrix ein – daraus wird eine Präsentation im Kompetenz-Kompanie-Branding erstellt. Pro Folie werden zwei Design-Varianten zur Auswahl vorgeschlagen.</p>
+      <div class="gen-field">
+        <label for="gen-title">Titel der Präsentation (optional)</label>
+        <input type="text" id="gen-title" placeholder="z. B. Possehl-Keynote" autocomplete="off">
+      </div>
+      <div class="gen-field">
+        <label for="gen-text">Text / Storyboard</label>
+        <textarea id="gen-text" placeholder="Folie 1&#10;Titel: …&#10;Kernaussage: …&#10;Zitat: „…&#8220; — Quelle&#10;Visualisierung: …&#10;&#10;Folie 2&#10;…"></textarea>
+        <div class="gen-note">Pflichtfeld, mindestens 10 Zeichen.</div>
+      </div>
+      <div class="gen-field">
+        <label for="gen-model">Modell</label>
+        <select id="gen-model">
+          <option value="">Standard (Sonnet 5) – schnell und günstig</option>
+          <option value="claude-opus-5">Opus 5 – gründlicher, langsamer</option>
+          <option value="claude-haiku-4-5-20251001">Haiku 4.5 – schnell, aber nicht für Bilder geeignet</option>
+        </select>
+        <div class="gen-note">Gilt für die ganze Präsentation; Anpassungsrunden übernehmen das Modell.
+          <b>Für Präsentationen mit Bildern mindestens Sonnet 5 wählen</b> – Haiku bricht die Kette aus
+          Bilderzeugung und Rendern erfahrungsgemäß in der Mitte ab.</div>
+      </div>
+
+      <label class="ref-check" id="push-opt" hidden>
+        <input type="checkbox" id="push-toggle" onchange="pushUmschalten(this)">
+        <span>Benachrichtigen, wenn die Präsentation fertig ist – als Systemmeldung, auch bei geschlossenem Tab.
+          <span class="gen-note" id="push-hinweis" style="margin-top:4px"></span></span>
+      </label>
+      <div class="gen-error" id="gen-form-error" hidden></div>
+      <div class="gen-foot">
+        <button class="btn btn-outline" onclick="location.hash = ''">Zur Übersicht</button>
+        <button class="btn" id="btn-generate" onclick="genCreateJob()">Präsentation generieren</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Ansicht 5: Eigene Präsentation hochladen ('#import') -->
+  <section id="view-import" hidden>
+    <div class="card">
+      <div class="card-header"><h2>Eigene Präsentation hochladen</h2></div>
+      <p class="gen-help">Lade eine PowerPoint hoch.</p>
+
+      <div class="gen-field">
+        <label for="imp-titel">Titel (optional)</label>
+        <input type="text" id="imp-titel" placeholder="ohne Angabe wird der Dateiname verwendet" autocomplete="off">
+      </div>
+
+      <div class="gen-field">
+        <label for="imp-wunsch">Anpassungswünsche (optional)</label>
+        <textarea id="imp-wunsch" style="min-height:90px" placeholder="z. B. „Folie 3 und 4 tauschen, überall weniger Text.&#8220;"></textarea>
+        <div class="gen-note">Vor dem Auswählen der Datei ausfüllen – die Verarbeitung startet sofort danach.</div>
+      </div>
+
+      <div class="gen-field" id="imp-dateifeld">
+        <label>PowerPoint-Datei</label>
+        <div class="ref-drop" id="imp-drop" onclick="document.getElementById('imp-file').click()">
+          <p><strong>PPTX hierher ziehen</strong> oder klicken zum Auswählen<br>
+          <span class="gen-note">Die Vorschau entsteht sofort nach dem Auswählen.</span></p>
+        </div>
+        <input type="file" id="imp-file" accept=".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation" hidden onchange="impDateiWaehlen(this.files[0])">
+        <div class="gen-note" id="imp-datei-info"></div>
+      </div>
+
+      <div id="imp-ergebnis" hidden>
+        <div class="imp-status" id="imp-status">
+          <div class="gen-spinner" style="width:34px;height:34px;border-width:4px"></div>
+          <div>
+            <div id="imp-status-text">Vorschau wird erstellt …</div>
+            <div class="gen-note" id="imp-status-detail">Die Folien werden direkt aus der Datei gerendert.</div>
+          </div>
+        </div>
+        <div class="imp-vorschau" id="imp-vorschau"></div>
+      </div>
+
+      <div class="gen-error" id="imp-error" hidden></div>
+      <div class="gen-foot" id="imp-foot">
+        <button class="btn btn-outline" onclick="location.hash = ''">Zur Übersicht</button>
+      </div>
+      <div class="gen-foot" id="imp-foot-fertig" hidden>
+        <button class="btn btn-outline" onclick="impNeu()">Weitere hochladen</button>
+        <button class="btn" id="btn-imp-oeffnen">Präsentation öffnen</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Ansicht 4: Bilder-Bibliothek ('#referenzen') -->
+  <section id="view-refs" hidden>
+    <div class="gen-cta" style="margin-top:0;margin-bottom:26px">
+      <button class="btn btn-lg" id="btn-ref-toggle" onclick="refToggleForm()">+ Neues Referenzbild hinzufügen</button>
+    </div>
+
+    <div class="card" id="ref-form-card" hidden>
+      <div class="card-header"><h2>Referenzbild hinzufügen</h2></div>
+      <p class="gen-help">Referenzbilder legen den Bildstil fest: Sie werden jeder Bildgenerierung als Vorlage mitgegeben. Je genauer die Angaben, desto treffsicherer wird die passende Referenz später ausgewählt. Bilder werden beim Hochladen automatisch auf 1600&nbsp;px verkleinert.</p>
+
+      <div class="gen-field">
+        <label>Bild (16:9)</label>
+        <div class="ref-drop" id="ref-drop" onclick="document.getElementById('ref-file').click()">
+          <p><strong>Bild hierher ziehen</strong> oder klicken zum Auswählen<br>PNG, JPEG oder WebP</p>
+        </div>
+        <input type="file" id="ref-file" accept="image/png,image/jpeg,image/webp" hidden onchange="refPickFile(this.files[0])">
+        <div class="ref-preview" id="ref-preview" hidden>
+          <img id="ref-preview-img" alt="Vorschau des gewählten Referenzbildes">
+          <div class="meta" id="ref-preview-meta"></div>
+        </div>
+      </div>
+
+      <div class="gen-field">
+        <label for="ref-titel">Titel des Motivs</label>
+        <input type="text" id="ref-titel" placeholder="z. B. Laufband vor Treppe" autocomplete="off">
+        <div class="gen-note">Sprechender Kurzname, von Hand vergeben – er ist der semantische Anker der Bibliothek und wird zum Dateinamen verkürzt.</div>
+      </div>
+
+      <div class="ref-grid2">
+        <div class="gen-field">
+          <label for="ref-bildlogik">Bildlogik</label>
+          <select id="ref-bildlogik" onchange="refApplyLogik()">
+            <option value="">– bitte wählen –</option>
+            <option value="spannung">Spannung – zwei Kräfte im Konflikt</option>
+            <option value="weg-prozess">Weg / Prozess – Bewegung, Stufen, Richtung</option>
+            <option value="einzelsymbol">Einzelsymbol – ein Objekt trägt alles</option>
+            <option value="gegenueberstellung">Gegenüberstellung – zwei Welten nebeneinander</option>
+            <option value="szene">Szene – Situation ohne Symbolik</option>
+          </select>
+          <div class="gen-note" id="ref-logik-hint">Bestimmt, welche weiteren Felder gebraucht werden.</div>
+        </div>
+        <div class="gen-field">
+          <label for="ref-bildwirkung">Bildwirkung</label>
+          <select id="ref-bildwirkung">
+            <option value="">– bitte wählen –</option>
+            <option value="nuechtern">nüchtern</option>
+            <option value="zugespitzt">zugespitzt</option>
+            <option value="hoffnungsvoll">hoffnungsvoll</option>
+            <option value="beklemmend">beklemmend</option>
+          </select>
+          <div class="gen-note">Macht die Bibliothek über Themen hinweg durchsuchbar.</div>
+        </div>
+      </div>
+
+      <div class="gen-field">
+        <label for="ref-kernaussage">Kernaussage</label>
+        <input type="text" id="ref-kernaussage" placeholder="z. B. Viel Bewegung, kein Fortschritt" autocomplete="off">
+        <div class="gen-note">Der eine Satz, den das Bild transportieren soll.</div>
+      </div>
+
+      <div class="gen-field">
+        <label for="ref-element-a" id="ref-label-a">Bildelement A – und wofür es steht</label>
+        <input type="text" id="ref-element-a" placeholder="z. B. Laufband — Betriebsamkeit ohne Ziel" autocomplete="off">
+        <div class="gen-note">Objekt und Bedeutung in einem Feld, mit Gedankenstrich getrennt.</div>
+      </div>
+
+      <div class="gen-field" id="ref-feld-b" hidden>
+        <label for="ref-element-b" id="ref-label-b">Bildelement B – und wofür es steht</label>
+        <input type="text" id="ref-element-b" placeholder="z. B. Krawatte — Management, das blockiert" autocomplete="off">
+      </div>
+
+      <div class="gen-field" id="ref-feld-beziehung" hidden>
+        <label for="ref-beziehung">Beziehung zwischen den Elementen (optional)</label>
+        <input type="text" id="ref-beziehung" placeholder="gefesselt, versiegelt, beschwert, getrennt, überragt …" autocomplete="off">
+      </div>
+
+      <div class="gen-field">
+        <label for="ref-tags">Schlagworte</label>
+        <input type="text" id="ref-tags" placeholder="stagnation, prozess, betriebsamkeit" autocomplete="off">
+        <div class="gen-note">Mit Komma trennen, mindestens zwei. Das wichtigste Feld – darüber wird die passende Referenz gefunden.</div>
+      </div>
+
+      <div class="gen-field">
+        <label for="ref-prompt">Verwendeter Prompt</label>
+        <textarea id="ref-prompt" style="min-height:130px" placeholder="Der vollständige Prompt, mit dem dieses Bild entstanden ist."></textarea>
+      </div>
+
+      <label class="ref-check">
+        <input type="checkbox" id="ref-anker">
+        <span>Als <b>Stilanker</b> setzen – wird jeder Bildgenerierung mitgegeben und trägt Licht, Farbwelt und Komposition. Es gibt genau einen; ein bisheriger Anker verliert die Markierung.</span>
+      </label>
+
+      <div class="gen-error" id="ref-error" hidden></div>
+      <div class="gen-foot">
+        <button class="btn btn-outline" onclick="refToggleForm(false)">Abbrechen</button>
+        <button class="btn" id="btn-ref-save" onclick="refSubmit()">Referenz speichern</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2>Bilder-Bibliothek</h2>
+        <span class="hint" id="ref-lib-count"></span>
+      </div>
+      <p class="gen-help">Sortiert nach Bildlogik – der Art, wie ein Bild seine Aussage baut. 5–15 Referenzen sind die richtige Größe; jede zusätzliche mittelmäßige verwässert den Stil, statt ihn zu schärfen. Ausblenden statt löschen bewahrt die Nachvollziehbarkeit.</p>
+      <div id="ref-lib"></div>
+      <div class="empty-note" id="ref-lib-empty" hidden>Noch keine Referenzbilder vorhanden.</div>
+    </div>
+  </section>
+
+  <!-- Ansicht 3: Loader / Vorschau ('#job=<id>') -->
+  <section id="view-job" hidden>
+    <div class="card" id="job-status-card">
+      <div class="gen-loader" id="gen-loader">
+        <div class="gen-spinner"></div>
+        <p id="loader-status">Auftrag wird geladen …</p>
+        <div class="gen-bar" id="gen-bar" hidden><i id="gen-bar-fill"></i></div>
+        <div class="gen-bar-zahl" id="gen-bar-zahl" hidden></div>
+        <div class="gen-detail" id="loader-detail"></div>
+        <div class="gen-hint" id="loader-quota" hidden>
+          <span class="badge badge-yellow">Kontingent</span>
+          <span>Kontingent erschöpft – die Generierung wird automatisch fortgesetzt, sobald wieder Kapazität frei ist.</span>
+        </div>
+      </div>
+      <div class="gen-joberror" id="gen-joberror" hidden>
+        <h3>Generierung fehlgeschlagen</h3>
+        <div class="gen-errmsg" id="gen-joberror-msg"></div>
+        <div class="actions">
+          <button class="btn btn-outline" onclick="location.hash = '#neu'">Zurück zur Eingabe</button>
+          <button class="btn" id="btn-retry" onclick="genRetry()">Neu versuchen</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="job-review" hidden>
+      <div class="review-bar">
+        <div class="row">
+          <div class="review-title" id="review-title"></div>
+        </div>
+        <div class="review-summary">
+          <span>Wähle pro Folie eine Fassung – erneutes Klicken hebt die Wahl wieder auf:</span>
+          <span class="pill"><b id="cnt-a">0</b>&times; Variante A</span>
+          <span class="pill"><b id="cnt-b">0</b>&times; Variante B</span>
+          <span class="scrollpos" id="scroll-pos"></span>
+        </div>
+      </div>
+      <div id="slides"></div>
+      <div class="end-note" id="end-note"></div>
+
+      <div class="card gen-loeschen">
+        <div class="card-header"><h2>Präsentation löschen</h2></div>
+        <p>Entfernt diese Präsentation mit allen Überarbeitungen, Vorschaubildern und Dateien. Das lässt sich nicht rückgängig machen.</p>
+        <div class="gen-foot">
+          <button class="btn btn-sm btn-outline" id="btn-deck-loeschen" onclick="genLoeschenDialog(genJobId)">Präsentation löschen</button>
+        </div>
+      </div>
+
+      <div class="card gen-feedback">
+        <div class="card-header"><h2>Anpassungen zur Präsentation</h2></div>
+        <p>Beschreibe, was insgesamt geändert werden soll – daraus wird eine überarbeitete Version mit neuen Vorschau-Folien erstellt.</p>
+        <textarea id="feedback-text" placeholder="z. B. „Die Zitate größer setzen und insgesamt weniger Text pro Folie.&#8220;"></textarea>
+        <div class="gen-foot">
+          <button class="btn btn-outline" id="btn-feedback" onclick="genSubmitFeedback()">Anpassung senden</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+</div>
+
+<!-- Schwebende Insel: Übersicht und Download, immer erreichbar -->
+<div class="kk-insel" id="kk-insel" hidden>
+  <button class="btn btn-sm btn-outline" onclick="location.hash = ''">Übersicht</button>
+  <button class="btn btn-sm" id="btn-finalize" onclick="genFinalize()">Download</button>
+  <div class="insel-hinweis" id="insel-hinweis"></div>
+</div>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox">
+  <button class="lb-close" onclick="genCloseLb()" title="Schließen">&times;</button>
+  <button class="lb-nav lb-prev" onclick="genNavLb(-1)" title="Vorherige">&#8249;</button>
+  <button class="lb-nav lb-next" onclick="genNavLb(1)" title="Nächste">&#8250;</button>
+  <div class="lb-stage"><img id="lb-img" src="" alt=""></div>
+  <div class="lb-cap" id="lb-cap"></div>
+  <div class="lb-hint">Pfeiltasten blättern · Esc schließen</div>
+</div>
+
+<a id="dl-link" hidden download></a>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/js/supabase.js"></script>
+<script src="assets/js/data.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+kkShell({ title: 'PPTX-Generator', subtitle: 'Präsentationen im KomKom-Design · zwei Varianten je Folie' });
+
+/* ============================================================
+   PPTX-Generator – Anbindung an die Supabase Edge Functions
+   Ansichten: Übersicht ('' ) · Erstellung ('#neu') · Job ('#job=<id>')
+   ============================================================ */
+const KK_FN_BASE = KK_SUPABASE_URL + '/functions/v1';
+
+/* Status -> Anzeige (Label, Badge-Klasse, Loader-Text) */
+const GEN_STATUS = {
+  awaiting_upload: { label: 'Wartet auf Datei',    badge: 'badge-gray',   loader: 'Warte auf die Datei …' },
+  queued:        { label: 'Eingereiht',            badge: 'badge-gray',   loader: 'Auftrag ist eingereiht …' },
+  processing:    { label: 'In Bearbeitung',        badge: 'badge-yellow', loader: 'Präsentation wird gestaltet …' },
+  generating:    { label: 'In Bearbeitung',        badge: 'badge-yellow', loader: 'Präsentation wird gestaltet …' },
+  rendering:     { label: 'Vorschau wird erstellt', badge: 'badge-yellow', loader: 'Vorschau-Bilder werden gerendert …' },
+  waiting_quota: { label: 'Wartet auf Kontingent', badge: 'badge-yellow', loader: 'Warten auf freies Kontingent …' },
+  preview_ready: { label: 'Vorschau bereit',       badge: 'badge-orange', loader: 'Vorschau wird geladen …' },
+  finalizing:    { label: 'Wird finalisiert',      badge: 'badge-yellow', loader: 'PowerPoint wird zusammengestellt …' },
+  done:          { label: 'Fertig',                badge: 'badge-green',  loader: 'Fertig.' },
+  error:         { label: 'Fehler',                badge: 'badge-red',    loader: 'Fehler.' }
+};
+function genStatusInfo(st) {
+  return GEN_STATUS[st] || { label: st || '–', badge: 'badge-gray', loader: 'Präsentation wird erstellt …' };
+}
+
+/* ---------- Zustand ---------- */
+let genJobId = null;          // aktuell beobachteter/angezeigter Job
+let genJob = null;            // letzter bekannter Job-Datensatz
+let genPreviews = {};         // Storage-Pfad -> Signed URL
+let genSel = {};              // position -> 'a' | 'b'
+let genUploads = [];          // hochgeladene Folienbilder der ganzen Kette
+let genZielFolie = null;      // Folie, zu der nach der Überarbeitung gesprungen wird
+let genChannel = null;        // Realtime-Channel
+let genPollTimer = null;      // Polling-Fallback
+let genFetching = false;      // Schutz gegen parallele Status-Abrufe
+let genLastRequest = null;    // für „Neu versuchen" bei Fehlern
+let genIo = null;             // IntersectionObserver (Scroll-Position)
+let genCrumbLast = null;      // zuletzt gesetzter Breadcrumb der Job-Ansicht
+
+/* ---------- Helfer ---------- */
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+function genToast(msg) {
+  let t = document.getElementById('kk-toast');
+  if (!t) { t = document.createElement('div'); t.id = 'kk-toast'; document.body.appendChild(t); }
+  t.innerHTML = '<span class="toast-dot"></span><span>' + esc(msg) + '</span>';
+  t.classList.add('show');
+  clearTimeout(window.__kkToastTimer);
+  window.__kkToastTimer = setTimeout(function () { t.classList.remove('show'); }, 3600);
+}
+async function kkAuthHeaders() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) throw new Error('Keine aktive Sitzung – bitte neu anmelden.');
+  return {
+    'Authorization': 'Bearer ' + session.access_token,
+    'apikey': KK_SUPABASE_ANON,
+    'Content-Type': 'application/json'
+  };
+}
+async function kkApi(path, opts) {
+  const headers = await kkAuthHeaders();
+  const res = await fetch(KK_FN_BASE + path, Object.assign({ headers: headers }, opts || {}));
+  let body = null;
+  try { body = await res.json(); } catch (e) { /* keine JSON-Antwort */ }
+  if (!res.ok) {
+    const msg = (body && (body.error || body.message)) || ('HTTP ' + res.status);
+    throw new Error(msg);
+  }
+  return body || {};
+}
+
+/* ============================================================
+   Routing über location.hash
+   '' = Übersicht · '#neu' = Erstellung · '#job=<id>' = Loader/Vorschau
+   ============================================================ */
+function genShowView(id) {
+  ['view-home', 'view-new', 'view-job', 'view-refs', 'view-import'].forEach(function (s) {
+    document.getElementById(s).hidden = (s !== id);
+  });
+  // Die Insel gehört zur Vorschau; anderswo wäre sie ohne Bezug
+  const insel = document.getElementById('kk-insel');
+  if (insel) insel.hidden = true;
+  if (id !== 'view-import' && typeof impTimer !== 'undefined') clearInterval(impTimer);
+  window.scrollTo(0, 0);
+}
+
+/* Breadcrumb der Job-Ansicht: Haus / PPTX-Generator / <Titel|Vorschau> */
+function genJobCrumb(title) {
+  const label = title || 'Vorschau';
+  if (genCrumbLast === label) return;
+  genCrumbLast = label;
+  kkSetBreadcrumb([
+    { label: 'PPTX-Generator', href: 'generator.html' },
+    { label: label }
+  ]);
+}
+
+function genRoute() {
+  genStopWatching();
+  genCrumbLast = null;
+  const h = location.hash || '';
+  if (h.indexOf('#job=') === 0) {
+    genOpenJobView(decodeURIComponent(h.slice(5)));
+    return;
+  }
+  genJobId = null;
+  genJob = null;
+  if (h === '#neu') {
+    kkSetBreadcrumb([
+      { label: 'PPTX-Generator', href: 'generator.html' },
+      { label: 'Neue Präsentation' }
+    ]);
+    genShowView('view-new');
+  } else if (h === '#import') {
+    kkSetBreadcrumb([
+      { label: 'PPTX-Generator', href: 'generator.html' },
+      { label: 'Eigene Präsentation' }
+    ]);
+    genShowView('view-import');
+  } else if (h === '#referenzen') {
+    kkSetBreadcrumb([
+      { label: 'PPTX-Generator', href: 'generator.html' },
+      { label: 'Bilder-Bibliothek' }
+    ]);
+    genShowView('view-refs');
+    refLoadLibrary();
+  } else {
+    kkSetBreadcrumb([{ label: 'PPTX-Generator' }]);
+    genShowView('view-home');
+    genLoadOverview();
+    genStarteUebersichtsTakt();
+  }
+}
+window.addEventListener('hashchange', genRoute);
+pushInit();
+
+/* ============================================================
+   Übersicht: alle Jobs laden und zu Präsentations-Ketten gruppieren
+   (Wurzel = parent_job null; Kette über parent_job verfolgen)
+   ============================================================ */
+async function genLoadOverview() {
+  const tbl = document.getElementById('tbl-decks');
+  const empty = document.getElementById('decks-empty');
+  let rows = [];
+  try {
+    const { data, error } = await sb.schema('customer_content').from('komkom_pptx_jobs')
+      .select('id,created_at,status,kind,title,parent_job,selection,manifest,progress')
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+    rows = data || [];
+  } catch (e) {
+    rows = [];                       // Fehler still tolerieren
+  }
+
+  const byId = {};
+  rows.forEach(function (r) { byId[r.id] = r; });
+  const kids = {};
+  rows.forEach(function (r) {
+    if (r.parent_job && byId[r.parent_job]) {
+      (kids[r.parent_job] = kids[r.parent_job] || []).push(r);
+    }
+  });
+  // Wurzeln: parent_job null – oder Eltern-Zeile nicht (mehr) vorhanden
+  const roots = rows.filter(function (r) { return !r.parent_job || !byId[r.parent_job]; });
+
+  const decks = roots.map(function (root) {
+    const chain = [];
+    const stack = [root];
+    const seen = {};
+    while (stack.length) {
+      const r = stack.pop();
+      if (seen[r.id]) continue;
+      seen[r.id] = true;
+      chain.push(r);
+      (kids[r.id] || []).forEach(function (c) { stack.push(c); });
+    }
+    // Neueste generate/feedback-Zeile der Kette (finalize-Jobs ausgenommen)
+    const genRows = chain
+      .filter(function (r) { return r.kind !== 'finalize'; })
+      .sort(function (a, b) { return new Date(a.created_at) - new Date(b.created_at); });
+    const latest = genRows.length ? genRows[genRows.length - 1] : root;
+    // Fertige Endfassung in der Kette? Dann direkt herunterladbar.
+    const finals = chain
+      .filter(function (r) { return r.kind === 'finalize' && r.status === 'done'; })
+      .sort(function (a, b) { return new Date(a.created_at) - new Date(b.created_at); });
+    const anzahl = latest.manifest && latest.manifest.slide_count;
+    const gewaehlt = Array.isArray(latest.selection) ? latest.selection.length : 0;
+    return {
+      title: root.title || latest.title || 'Ohne Titel',
+      created: root.created_at,
+      latest: latest,
+      final: finals.length ? finals[finals.length - 1] : null,
+      // Ohne fertige Endfassung geht der Download nur, wenn jede Folie
+      // entschieden ist — sonst weist komkom-finalize ihn ab.
+      bereit: !!anzahl && gewaehlt === anzahl && latest.status === 'preview_ready',
+      hasFinal: finals.length > 0
+    };
+  }).sort(function (a, b) { return new Date(b.created) - new Date(a.created); });
+
+  if (!decks.length) {
+    tbl.innerHTML = '';
+    empty.hidden = false;
+    return;
+  }
+  empty.hidden = true;
+  tbl.innerHTML =
+    '<thead><tr><th>Titel</th><th>Erstellt</th><th>Status</th><th>Endfassung</th><th></th><th></th></tr></thead><tbody>' +
+    decks.map(function (d) {
+      const info = genStatusInfo(d.latest.status);
+      // Laufende Präsentationen zeigen ihren Fortschritt direkt in der Liste —
+      // sonst muss man jede einzeln öffnen, um zu sehen, wo sie steht.
+      const laeuft = ['queued', 'running', 'processing', 'generating', 'rendering'].indexOf(d.latest.status) !== -1;
+      const p = typeof d.latest.progress === 'number' ? d.latest.progress : null;
+      const balken = (laeuft && p !== null)
+        ? '<div class="mini-bar" title="' + Math.round(p) + ' % erledigt">' +
+            '<i style="width:' + Math.max(0, Math.min(100, p)) + '%"></i>' +
+          '</div><span class="mini-bar-zahl">' + Math.round(p) + ' %</span>'
+        : '';
+      const when = d.created
+        ? new Date(d.created).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })
+        : '–';
+      return '<tr class="clickable" onclick="location.hash = \'#job=' + esc(d.latest.id) + '\'" title="Präsentation öffnen">' +
+        '<td><strong>' + esc(d.title) + '</strong></td>' +
+        '<td>' + esc(when) + '</td>' +
+        '<td><span class="badge ' + info.badge + '">' + esc(info.label) + '</span>' + balken + '</td>' +
+        '<td>' + (d.hasFinal ? '<span class="badge badge-green">Endfassung vorhanden</span>' : '<span class="muted">–</span>') + '</td>' +
+        '<td onclick="event.stopPropagation()">' + genDownloadZelle(d) + '</td>' +
+        '<td onclick="event.stopPropagation()">' +
+          '<button class="icon-btn" title="Präsentation löschen" onclick="genLoeschenDialog(\'' + esc(d.latest.id) + '\')">' +
+            '<svg viewBox="0 0 24 24" stroke-width="2"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M10 11v6M14 11v6"/></svg>' +
+          '</button>' +
+        '</td>' +
+      '</tr>';
+    }).join('') + '</tbody>';
+}
+
+/* Download-Zelle der Übersicht. Drei Fälle, und keiner davon führt zu einem
+   Knopf, der beim Klicken nur eine Fehlermeldung liefert. */
+function genDownloadZelle(d) {
+  if (d.final) {
+    return '<button class="btn btn-sm" onclick="genDownloadFertige(\'' + esc(d.final.id) + '\', this)">Download</button>';
+  }
+  if (d.bereit) {
+    return '<button class="btn btn-sm btn-outline" onclick="genDownloadErzeugen(\'' + esc(d.latest.id) + '\', this)">Erstellen</button>';
+  }
+  return '<span class="muted" title="Erst öffnen und je Folie eine Fassung wählen">–</span>';
+}
+
+/* Vorhandene Endfassung: nur signieren und ausliefern */
+async function genDownloadFertige(finalJobId, btn) {
+  btn.disabled = true;
+  const alt = btn.textContent;
+  btn.textContent = '…';
+  try {
+    const resp = await kkApi('/komkom-job-status?job_id=' + encodeURIComponent(finalJobId));
+    const url = resp.urls && resp.urls.result;
+    if (!url) throw new Error('Keine Datei hinterlegt.');
+    const a = document.getElementById('dl-link');
+    a.href = url;
+    a.click();
+    genToast('Download startet.');
+  } catch (e) {
+    genToast('Download fehlgeschlagen: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = alt;
+  }
+}
+
+/* Auswahl vollständig, aber noch keine Endfassung: jetzt erzeugen */
+async function genDownloadErzeugen(jobId, btn) {
+  btn.disabled = true;
+  const alt = btn.textContent;
+  btn.textContent = 'Wird erstellt …';
+  try {
+    const { data, error } = await sb.schema('customer_content').from('komkom_pptx_jobs')
+      .select('selection').eq('id', jobId).maybeSingle();
+    if (error) throw error;
+    const resp = await kkApi('/komkom-finalize', {
+      method: 'POST',
+      body: JSON.stringify({ job_id: jobId, selection: (data && data.selection) || [] })
+    });
+    if (resp.download_url) {
+      const a = document.getElementById('dl-link');
+      a.href = resp.download_url;
+      a.click();
+    }
+    genToast('Endfassung erstellt – der Download startet.');
+    genLoadOverview();
+  } catch (e) {
+    genToast('Erstellen fehlgeschlagen: ' + e.message);
+    btn.disabled = false;
+    btn.textContent = alt;
+  }
+}
+
+/* Solange etwas läuft, die Übersicht alle 10 s auffrischen. Der Takt hält
+   nur an, wenn wirklich ein Lauf offen ist — sonst pollen wir grundlos. */
+let genUebersichtTimer = null;
+function genStarteUebersichtsTakt() {
+  clearInterval(genUebersichtTimer);
+  genUebersichtTimer = setInterval(function () {
+    if (location.hash !== '' && location.hash !== '#') {
+      clearInterval(genUebersichtTimer);
+      return;
+    }
+    genLoadOverview();
+  }, 10000);
+}
+
+/* ============================================================
+   Erstellung: Auftrag anlegen -> direkt in den Loader wechseln
+   ============================================================ */
+async function genCreateJob() {
+  const titleEl = document.getElementById('gen-title');
+  const textEl = document.getElementById('gen-text');
+  const errEl = document.getElementById('gen-form-error');
+  const btn = document.getElementById('btn-generate');
+  errEl.hidden = true;
+
+  const inputText = textEl.value.trim();
+  const title = titleEl.value.trim();
+  if (inputText.length < 10) {
+    errEl.textContent = 'Bitte einen Text mit mindestens 10 Zeichen eingeben.';
+    errEl.hidden = false;
+    return;
+  }
+
+  genLastRequest = { type: 'create', payload: { input_text: inputText, title: title } };
+  btn.disabled = true;
+  btn.textContent = 'Wird eingereicht …';
+  try {
+    const resp = await kkApi('/komkom-create-job', {
+      method: 'POST',
+      body: JSON.stringify({
+        input_text: inputText,
+        title: title,
+        model: document.getElementById('gen-model').value || undefined
+      })
+    });
+    location.hash = '#job=' + resp.job_id;
+  } catch (e) {
+    errEl.textContent = 'Auftrag konnte nicht angelegt werden: ' + e.message;
+    errEl.hidden = false;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Präsentation generieren';
+  }
+}
+
+/* „Neu versuchen" nach Fehler: letzte Anfrage erneut senden */
+async function genRetry() {
+  if (!genLastRequest) { location.hash = '#neu'; return; }
+  const btn = document.getElementById('btn-retry');
+  btn.disabled = true;
+  btn.textContent = 'Wird eingereicht …';
+  try {
+    const path = genLastRequest.type === 'feedback' ? '/komkom-submit-feedback' : '/komkom-create-job';
+    const resp = await kkApi(path, { method: 'POST', body: JSON.stringify(genLastRequest.payload) });
+    location.hash = '#job=' + resp.job_id;
+  } catch (e) {
+    genToast('Erneuter Versuch fehlgeschlagen: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Neu versuchen';
+  }
+}
+
+/* ============================================================
+   Referenzbilder ('#referenzen')
+   Bucket komkom-skill/image-style/refs/ – erreichbar nur über die
+   Edge Function komkom-image-refs (der Bucket hat keine Storage-Policy).
+   ============================================================ */
+/* Zielfolie über den Seitenwechsel hinweg merken. sessionStorage, weil
+   zwischen Absenden und fertiger Überarbeitung ein Neuladen liegen kann. */
+function genMerkeZielFolie(jobId, position) {
+  genZielFolie = { job: jobId, position: position };
+  try { sessionStorage.setItem('kk-ziel-' + jobId, String(position)); } catch (e) { /* egal */ }
+}
+
+function genHoleZielFolie(jobId) {
+  if (genZielFolie && genZielFolie.job === jobId) return genZielFolie.position;
+  try {
+    const v = sessionStorage.getItem('kk-ziel-' + jobId);
+    return v ? parseInt(v, 10) : null;
+  } catch (e) { return null; }
+}
+
+/* Nach dem Aufbau der Vorschau zur geänderten Folie scrollen und sie kurz
+   hervorheben — sonst landet man wieder ganz oben und sucht. */
+function genSpringeZurZielfolie() {
+  const pos = genHoleZielFolie(genJobId);
+  if (!pos) return;
+  const block = document.getElementById('block-' + pos);
+  if (!block) return;
+  block.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  block.classList.add('hervorgehoben');
+  setTimeout(function () { block.classList.remove('hervorgehoben'); }, 2600);
+  genZielFolie = null;
+  try { sessionStorage.removeItem('kk-ziel-' + genJobId); } catch (e) { /* egal */ }
+}
+
+/* ============================================================
+   Fertigmeldung per Web Push
+   Anmeldung je Gerät; der Versand hängt am Datenbank-Trigger, nicht am
+   Worker — der ändert wie bisher nur den Status.
+   ============================================================ */
+const PUSH_VAPID_PUBLIC = 'BA7FOMi-M0tP1RjGIovG7rQKing7i4LaQTcPd9eUE04RU6g08Zh2Mhf-SQ9BAPiJV3dy7frSEkJFNjCrG-QXzbQ';
+
+function pushMoeglich() {
+  return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+}
+
+/* iOS liefert Web Push nur an eine installierte PWA — ohne Hinweis sucht man
+   den Fehler sonst bei sich. */
+function pushIstIosOhnePwa() {
+  const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  return ios && !window.matchMedia('(display-mode: standalone)').matches && !navigator.standalone;
+}
+
+function pushB64ZuBytes(b64) {
+  const roh = atob((b64 + '='.repeat((4 - b64.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/'));
+  return Uint8Array.from(roh, function (c) { return c.charCodeAt(0); });
+}
+
+async function pushInit() {
+  const box = document.getElementById('push-opt');
+  const hinweis = document.getElementById('push-hinweis');
+  if (!box || !pushMoeglich()) return;   // Feld bleibt verborgen
+  box.hidden = false;
+
+  if (pushIstIosOhnePwa()) {
+    hinweis.textContent = 'Auf iPhone und iPad erst möglich, wenn die Seite über „Teilen → Zum Home-Bildschirm" hinzugefügt wurde.';
+  } else if (Notification.permission === 'denied') {
+    hinweis.textContent = 'Benachrichtigungen sind für diese Seite im Browser blockiert.';
+  }
+
+  try {
+    const reg = await navigator.serviceWorker.register('sw.js');
+    const abo = await reg.pushManager.getSubscription();
+    document.getElementById('push-toggle').checked = !!abo;
+  } catch (e) {
+    hinweis.textContent = 'Benachrichtigungen sind auf diesem Gerät nicht verfügbar.';
+  }
+}
+
+async function pushUmschalten(el) {
+  const hinweis = document.getElementById('push-hinweis');
+  try {
+    const reg = await navigator.serviceWorker.register('sw.js');
+    if (!el.checked) {
+      const abo = await reg.pushManager.getSubscription();
+      if (abo) {
+        await sb.schema('customer_content').from('komkom_push_subscriptions')
+          .delete().eq('endpoint', abo.endpoint);
+        await abo.unsubscribe();
+      }
+      hinweis.textContent = '';
+      genToast('Benachrichtigungen für dieses Gerät abgeschaltet.');
+      return;
+    }
+
+    // Berechtigung erst hier erfragen — nicht beim Seitenaufruf
+    const erlaubnis = await Notification.requestPermission();
+    if (erlaubnis !== 'granted') {
+      el.checked = false;
+      hinweis.textContent = erlaubnis === 'denied'
+        ? 'Im Browser blockiert. Das lässt sich nur in den Seiteneinstellungen ändern.'
+        : 'Ohne Berechtigung keine Benachrichtigung.';
+      return;
+    }
+
+    const abo = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: pushB64ZuBytes(PUSH_VAPID_PUBLIC)
+    });
+    const j = abo.toJSON();
+    const { data: { user } } = await sb.auth.getUser();
+    if (!user) throw new Error('Keine aktive Sitzung.');
+
+    // Kein upsert: das ist intern ein INSERT ... ON CONFLICT DO UPDATE und
+    // bräuchte UPDATE-Recht. Die Tabelle hat bewusst keines — eine geänderte
+    // Anmeldung ist eine neue Zeile. Also erst die alte für genau diesen
+    // Endpunkt entfernen, dann anlegen.
+    await sb.schema('customer_content').from('komkom_push_subscriptions')
+      .delete().eq('endpoint', j.endpoint);
+    const { error } = await sb.schema('customer_content').from('komkom_push_subscriptions')
+      .insert({
+        user_id: user.id,
+        endpoint: j.endpoint,
+        p256dh: j.keys.p256dh,
+        auth: j.keys.auth,
+        user_agent: navigator.userAgent.slice(0, 300)
+      });
+    if (error) throw error;
+
+    hinweis.textContent = '';
+    genToast('Dieses Gerät wird benachrichtigt, sobald eine Präsentation fertig ist.');
+  } catch (e) {
+    el.checked = false;
+    hinweis.textContent = 'Anmeldung fehlgeschlagen: ' + e.message;
+  }
+}
+
+const REF_MAX_EDGE = 1600;     // längste Kante nach dem Verkleinern
+const REF_JPEG_QUALITY = 0.85;
+let refBild = null;            // { dataUrl, mime, w, h, bytes }
+let refLibCache = [];          // zuletzt geladene Bibliothek (für Dialogtexte)
+
+/* Datei annehmen: einlesen, auf 16:9-Nähe prüfen, verkleinern, Vorschau zeigen */
+function refPickFile(file) {
+  if (!file) return;
+  const errEl = document.getElementById('ref-error');
+  errEl.hidden = true;
+  if (!/^image\/(png|jpeg|webp)$/.test(file.type)) {
+    errEl.textContent = 'Nur PNG, JPEG oder WebP.';
+    errEl.hidden = false;
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = function () {
+    const img = new Image();
+    img.onload = function () {
+      const scale = Math.min(1, REF_MAX_EDGE / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      const dataUrl = canvas.toDataURL('image/jpeg', REF_JPEG_QUALITY);
+      const bytes = Math.round((dataUrl.length - dataUrl.indexOf(',') - 1) * 0.75);
+
+      refBild = { dataUrl: dataUrl, mime: 'image/jpeg', w: w, h: h, bytes: bytes };
+
+      document.getElementById('ref-preview-img').src = dataUrl;
+      document.getElementById('ref-preview').hidden = false;
+
+      // 16:9 ist Vorgabe, aber kein Ausschlusskriterium – nur ein Hinweis
+      const ratio = img.width / img.height;
+      const abweichung = Math.abs(ratio - 16 / 9) > 0.06
+        ? '<br><span class="badge badge-yellow">Kein 16:9</span> Seitenverhältnis ' +
+          esc(ratio.toFixed(2)) + ':1 – als Folienhintergrund wird zugeschnitten.'
+        : '';
+      document.getElementById('ref-preview-meta').innerHTML =
+        '<b>' + esc(file.name) + '</b><br>' +
+        'Original ' + img.width + '&times;' + img.height + ' px<br>' +
+        'Gespeichert als ' + w + '&times;' + h + ' px JPEG, ' + Math.round(bytes / 1024) + ' KB' +
+        abweichung;
+
+      // Titelvorschlag aus dem Dateinamen — aber NUR, wenn er wie ein Name
+      // aussieht. Generierte Dateien heißen oft "exec-6c301904-c321-…";
+      // daraus einen Titel zu machen, widerspricht dem Skill: der Titel ist
+      // der semantische Anker der Bibliothek, nie eine erzeugte ID.
+      const basis = file.name.replace(/\.[^.]+$/, '');
+      const wirktWieId = /[0-9a-f]{8,}/i.test(basis) || /^\d+$/.test(basis);
+      if (!document.getElementById('ref-titel').value.trim() && !wirktWieId) {
+        document.getElementById('ref-titel').value = basis.replace(/[-_]+/g, ' ').trim();
+      }
+    };
+    img.onerror = function () {
+      errEl.textContent = 'Bild konnte nicht gelesen werden.';
+      errEl.hidden = false;
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+/* Drag & Drop auf die Ablagefläche */
+(function refInitDrop() {
+  const drop = document.getElementById('ref-drop');
+  if (!drop) return;
+  ['dragenter', 'dragover'].forEach(function (ev) {
+    drop.addEventListener(ev, function (e) {
+      e.preventDefault();
+      drop.classList.add('over');
+    });
+  });
+  ['dragleave', 'drop'].forEach(function (ev) {
+    drop.addEventListener(ev, function (e) {
+      e.preventDefault();
+      drop.classList.remove('over');
+    });
+  });
+  drop.addEventListener('drop', function (e) {
+    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) refPickFile(f);
+  });
+})();
+
+/* Nur Spannung und Gegenüberstellung haben ein zweites Element. Bei
+   Einzelsymbol und Szene wäre es erfunden — deshalb wird es dort weder
+   gezeigt noch verlangt (Skill, Abschnitt 9). */
+const REF_BRAUCHT_B = { 'spannung': 1, 'gegenueberstellung': 1 };
+const REF_LOGIK_NAME = {
+  'spannung': 'Spannung', 'weg-prozess': 'Weg / Prozess', 'einzelsymbol': 'Einzelsymbol',
+  'gegenueberstellung': 'Gegenüberstellung', 'szene': 'Szene'
+};
+const REF_LOGIK_HINWEIS = {
+  '': 'Bestimmt, welche weiteren Felder gebraucht werden.',
+  'spannung': 'Zwei Elemente in direkter physischer Interaktion – nie nebeneinander.',
+  'weg-prozess': 'Element A ist der Ausgangspunkt, Element B das Ziel.',
+  'einzelsymbol': 'Ein Objekt trägt alles. Kein zweites Element erfinden.',
+  'gegenueberstellung': 'Zwei Zustände nebeneinander – Vergleich, kein Konflikt.',
+  'szene': 'Ort und Moment tragen die Aussage. Kein zweites Element erfinden.'
+};
+
+function refApplyLogik() {
+  const logik = document.getElementById('ref-bildlogik').value;
+  const brauchtB = !!REF_BRAUCHT_B[logik];
+  document.getElementById('ref-feld-b').hidden = !brauchtB;
+  document.getElementById('ref-feld-beziehung').hidden = !brauchtB;
+  document.getElementById('ref-logik-hint').textContent =
+    REF_LOGIK_HINWEIS[logik] || REF_LOGIK_HINWEIS[''];
+  // Weg/Prozess benutzt dieselben Felder, nur mit anderer Bedeutung
+  const wegProzess = logik === 'weg-prozess';
+  document.getElementById('ref-label-a').textContent =
+    wegProzess ? 'Ausgangspunkt – und wofür er steht' : 'Bildelement A – und wofür es steht';
+  document.getElementById('ref-label-b').textContent =
+    wegProzess ? 'Ziel – und wofür es steht' : 'Bildelement B – und wofür es steht';
+  if (wegProzess) document.getElementById('ref-feld-b').hidden = false;
+}
+
+/* Formular ist zugeklappt, bis jemand etwas hinzufügen will — die Bibliothek
+   ist der eigentliche Inhalt der Seite. */
+function refToggleForm(auf) {
+  const card = document.getElementById('ref-form-card');
+  const btn = document.getElementById('btn-ref-toggle');
+  const zeigen = (auf === undefined) ? card.hidden : !!auf;
+  card.hidden = !zeigen;
+  btn.textContent = zeigen ? 'Formular schließen' : '+ Neues Referenzbild hinzufügen';
+  if (zeigen) {
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById('ref-titel').focus();
+  } else {
+    refResetForm();
+  }
+}
+
+function refResetForm() {
+  refBild = null;
+  ['ref-titel', 'ref-kernaussage', 'ref-element-a', 'ref-element-b',
+   'ref-beziehung', 'ref-tags', 'ref-prompt']
+    .forEach(function (id) { document.getElementById(id).value = ''; });
+  document.getElementById('ref-bildlogik').value = '';
+  document.getElementById('ref-bildwirkung').value = '';
+  refApplyLogik();
+  document.getElementById('ref-anker').checked = false;
+  document.getElementById('ref-file').value = '';
+  document.getElementById('ref-preview').hidden = true;
+  document.getElementById('ref-error').hidden = true;
+}
+
+async function refSubmit() {
+  const errEl = document.getElementById('ref-error');
+  const btn = document.getElementById('btn-ref-save');
+  errEl.hidden = true;
+
+  const val = function (id) { return document.getElementById(id).value.trim(); };
+  const tags = val('ref-tags').split(',')
+    .map(function (t) { return t.trim().toLowerCase(); })
+    .filter(Boolean);
+
+  // Dieselben Pflichtfelder wie in der Edge Function – hier nur früher gemeldet
+  const logik = val('ref-bildlogik');
+  const fehlend = [];
+  if (!refBild) fehlend.push('Bild');
+  if (!val('ref-titel')) fehlend.push('Titel');
+  if (!logik) fehlend.push('Bildlogik');
+  if (!val('ref-bildwirkung')) fehlend.push('Bildwirkung');
+  if (!val('ref-kernaussage')) fehlend.push('Kernaussage');
+  if (!val('ref-element-a')) fehlend.push('Bildelement A');
+  if ((logik === 'spannung' || logik === 'gegenueberstellung') && !val('ref-element-b')) {
+    fehlend.push('Bildelement B');
+  }
+  if (tags.length < 2) fehlend.push('mindestens zwei Schlagworte');
+  if (!val('ref-prompt')) fehlend.push('Prompt');
+  if (fehlend.length) {
+    errEl.textContent = 'Es fehlt: ' + fehlend.join(', ') + '.';
+    errEl.hidden = false;
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Wird gespeichert …';
+  try {
+    const resp = await kkApi('/komkom-image-refs', {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'anlegen',
+        titel: val('ref-titel'),
+        bildlogik: logik,
+        kernaussage: val('ref-kernaussage'),
+        element_a: val('ref-element-a'),
+        element_b: val('ref-element-b'),
+        beziehung: val('ref-beziehung'),
+        bildwirkung: val('ref-bildwirkung'),
+        tags: tags,
+        prompt: val('ref-prompt'),
+        anker: document.getElementById('ref-anker').checked,
+        mime: refBild.mime,
+        bild: refBild.dataUrl
+      })
+    });
+    refToggleForm(false);
+    genToast('Referenz „' + resp.slug + '" gespeichert.');
+    refLoadLibrary();
+  } catch (e) {
+    errEl.textContent = 'Speichern fehlgeschlagen: ' + e.message;
+    errEl.hidden = false;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Referenz speichern';
+  }
+}
+
+async function refLoadLibrary() {
+  const lib = document.getElementById('ref-lib');
+  const empty = document.getElementById('ref-lib-empty');
+  const count = document.getElementById('ref-lib-count');
+  lib.innerHTML = '';
+  count.textContent = 'wird geladen …';
+
+  let refs = [];
+  try {
+    const resp = await kkApi('/komkom-image-refs');
+    refs = resp.refs || [];
+    refLibCache = refs;
+  } catch (e) {
+    count.textContent = '';
+    empty.hidden = false;
+    empty.textContent = 'Bibliothek konnte nicht geladen werden: ' + e.message;
+    return;
+  }
+
+  const aktiv = refs.filter(function (r) { return r.aktiv; }).length;
+  count.textContent = refs.length
+    ? refs.length + ' Referenz' + (refs.length === 1 ? '' : 'en') + ', davon ' + aktiv + ' aktiv'
+    : '';
+  empty.hidden = refs.length > 0;
+  empty.textContent = 'Noch keine Referenzbilder vorhanden.';
+
+  // Nach Bildlogik gruppieren; Reihenfolge wie im Skill, Unkategorisiertes
+  // ans Ende — dort fällt es auf und wird eher nachgepflegt.
+  const KATS = [
+    { key: 'spannung',           sub: 'Zwei Kräfte im Konflikt' },
+    { key: 'weg-prozess',        sub: 'Bewegung, Stufen, Richtung' },
+    { key: 'einzelsymbol',       sub: 'Ein Objekt trägt alles' },
+    { key: 'gegenueberstellung', sub: 'Zwei Welten nebeneinander' },
+    { key: 'szene',              sub: 'Situation ohne Symbolik' },
+    { key: '',                   sub: 'Noch keiner Bildlogik zugeordnet' }
+  ];
+
+  lib.innerHTML = KATS.map(function (kat) {
+    const drin = refs.filter(function (r) { return (r.bildlogik || '') === kat.key; });
+    if (!drin.length) return '';
+    return '<div class="ref-kat">' +
+      '<div class="ref-kat-head">' +
+        '<h3>' + esc(REF_LOGIK_NAME[kat.key] || 'Ohne Kategorie') + '</h3>' +
+        '<span class="kat-sub">' + esc(kat.sub) + '</span>' +
+        '<span class="kat-n">' + drin.length + '</span>' +
+      '</div>' +
+      '<div class="ref-lib-grid">' + drin.map(genRefCard).join('') + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+/* Eine Karte der Bibliothek */
+function genRefCard(r) {
+  // esc() vor dem Zusammenfügen — die Felder sind freier Nutzertext
+  const paar = [r.element_a, r.element_b].filter(Boolean).map(esc).join(' &nbsp;·&nbsp; ');
+  const badges =
+    (r.bildwirkung ? '<span class="badge badge-gray">' + esc(r.bildwirkung) + '</span>' : '') +
+    (r.anker ? '<span class="badge badge-orange">Stilanker</span>' : '') +
+    (r.aktiv ? '' : '<span class="badge badge-gray">Ausgeblendet</span>') +
+    (r.hat_sidecar ? '' : '<span class="badge badge-yellow">Ohne Angaben</span>');
+  const bild = r.url
+    ? '<a href="' + esc(r.url) + '" target="_blank" rel="noopener">' +
+      '<img src="' + esc(r.url) + '" alt="' + esc(r.titel) + '" loading="lazy"></a>'
+    : '<img alt="Vorschau nicht verfügbar">';
+
+  return '<div class="ref-card' + (r.aktiv ? '' : ' inaktiv') + '">' + bild +
+    '<div class="body">' +
+      (badges ? '<div class="badges">' + badges + '</div>' : '') +
+      '<h4>' + esc(r.titel) + '</h4>' +
+      (r.kernaussage ? '<div class="pair"><b>' + esc(r.kernaussage) + '</b></div>' : '') +
+      (paar ? '<div class="pair">' + paar + '</div>' : '') +
+      (r.beziehung ? '<div class="pair">' + esc(r.beziehung) + '</div>' : '') +
+      '<div class="tags">' + r.tags.map(function (t) {
+        return '<span class="tag">' + esc(t) + '</span>';
+      }).join('') + '</div>' +
+      '<div class="actions">' +
+        '<button class="btn btn-sm btn-outline" onclick="refToggleAktiv(\'' + esc(r.slug) + '\', ' + (!r.aktiv) + ')">' +
+          (r.aktiv ? 'Ausblenden' : 'Einblenden') + '</button>' +
+        '<button class="btn btn-sm btn-outline" onclick="refDelete(\'' + esc(r.slug) + '\')">Löschen</button>' +
+      '</div>' +
+    '</div></div>';
+}
+
+async function refToggleAktiv(slug, aktiv) {
+  try {
+    await kkApi('/komkom-image-refs', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'aktiv', slug: slug, aktiv: aktiv })
+    });
+    genToast(aktiv ? 'Referenz wieder aktiv.' : 'Referenz ausgeblendet.');
+    refLoadLibrary();
+  } catch (e) {
+    genToast('Änderung fehlgeschlagen: ' + e.message);
+  }
+}
+
+async function refDelete(slug) {
+  // Titel aus dem Zwischenspeicher statt über das onclick-Attribut – ein
+  // Apostroph im Titel würde den Aufruf sonst zerreißen.
+  const treffer = refLibCache.find(function (r) { return r.slug === slug; });
+  const titel = treffer ? treffer.titel : slug;
+  if (!window.confirm('Referenz „' + titel + '" endgültig löschen?\n\nZum Ausblenden ohne Datenverlust stattdessen „Ausblenden" verwenden.')) return;
+  try {
+    await kkApi('/komkom-image-refs', {
+      method: 'POST',
+      body: JSON.stringify({ action: 'loeschen', slug: slug })
+    });
+    genToast('Referenz gelöscht.');
+    refLoadLibrary();
+  } catch (e) {
+    genToast('Löschen fehlgeschlagen: ' + e.message);
+  }
+}
+
+/* ============================================================
+   Job-Ansicht: Status beobachten (Realtime + Polling-Fallback)
+   ============================================================ */
+function genOpenJobView(jobId) {
+  genShowView('view-job');
+  document.getElementById('job-review').hidden = true;
+  document.getElementById('job-status-card').hidden = false;
+  genJobCrumb(null);
+  genStartWatching(jobId);
+}
+
+function genStartWatching(jobId) {
+  genStopWatching();
+  genJobId = jobId;
+  genJob = null;
+  genPreviews = {};
+  genSel = {};
+  document.getElementById('gen-loader').hidden = false;
+  document.getElementById('gen-joberror').hidden = true;
+  document.getElementById('loader-quota').hidden = true;
+  document.getElementById('loader-status').textContent = 'Auftrag wird geladen …';
+  document.getElementById('loader-detail').textContent = '';
+
+  // Realtime: UPDATEs auf genau diesen Job. Liefert keine Signed URLs –
+  // daher stößt jedes Update zusätzlich einen Status-Abruf an.
+  genChannel = sb.channel('kk-pptx-job-' + jobId)
+    .on('postgres_changes',
+      { event: 'UPDATE', schema: 'customer_content', table: 'komkom_pptx_jobs', filter: 'id=eq.' + jobId },
+      function (payload) {
+        if (payload && payload.new) genApplyLoaderState(payload.new);
+        genFetchStatus();
+      })
+    .subscribe();
+
+  // Polling-Fallback alle 5 Sekunden
+  genPollTimer = setInterval(genFetchStatus, 5000);
+  genFetchStatus();
+}
+
+function genStopWatching() {
+  if (genPollTimer) { clearInterval(genPollTimer); genPollTimer = null; }
+  if (genChannel) {
+    try { sb.removeChannel(genChannel); } catch (e) { /* ignore */ }
+    genChannel = null;
+  }
+}
+window.addEventListener('beforeunload', genStopWatching);
+
+/* Loader-Anzeige aus einem Job-Datensatz aktualisieren */
+function genApplyLoaderState(job) {
+  if (!job || job.id !== genJobId) return;
+  const info = genStatusInfo(job.status);
+  document.getElementById('loader-status').textContent = info.loader;
+  document.getElementById('loader-detail').textContent = job.status_detail || '';
+  document.getElementById('loader-quota').hidden = (job.status !== 'waiting_quota');
+
+  // Der Balken erscheint erst, wenn der Worker wirklich Zahlen liefert —
+  // ein Balken, der bei 0 stehen bleibt, ist schlechter als keiner.
+  const bar = document.getElementById('gen-bar');
+  const zahl = document.getElementById('gen-bar-zahl');
+  const p = typeof job.progress === 'number' ? job.progress : null;
+  if (p === null) {
+    bar.hidden = true; zahl.hidden = true;
+    return;
+  }
+  bar.hidden = false; zahl.hidden = false;
+  document.getElementById('gen-bar-fill').style.width = Math.max(0, Math.min(100, p)) + '%';
+  zahl.textContent = Math.round(p) + ' %';
+}
+
+/* Status per Edge Function abrufen (einzige Quelle für Signed URLs) */
+async function genFetchStatus() {
+  if (!genJobId || genFetching) return;
+  genFetching = true;
+  const jobId = genJobId;
+  try {
+    const resp = await kkApi('/komkom-job-status?job_id=' + encodeURIComponent(jobId));
+    if (jobId !== genJobId) return;              // inzwischen anderer Job aktiv
+    const job = resp.job;
+    if (!job) return;
+    genJob = job;
+    genApplyLoaderState(job);      // Fortschritt auch ohne Realtime aktualisieren
+    genJobCrumb(job.title);
+    if (resp.urls && resp.urls.previews) Object.assign(genPreviews, resp.urls.previews);
+
+    if (job.status === 'error') {
+      genStopWatching();
+      document.getElementById('gen-loader').hidden = true;
+      document.getElementById('gen-joberror-msg').textContent = job.error || 'Unbekannter Fehler bei der Generierung.';
+      document.getElementById('gen-joberror').hidden = false;
+      return;
+    }
+    if (job.status === 'preview_ready' || (job.status === 'done' && job.manifest)) {
+      genStopWatching();
+      genRenderReview();
+      return;
+    }
+    if (job.status === 'done') {
+      genStopWatching();
+      document.getElementById('loader-status').textContent = 'Fertig.';
+      document.getElementById('loader-detail').textContent = 'Diese Version wurde bereits finalisiert.';
+      if (resp.urls && resp.urls.result) {
+        const a = document.getElementById('dl-link');
+        a.href = resp.urls.result;
+        a.click();
+        genToast('Download der fertigen Präsentation startet.');
+      }
+      return;
+    }
+    genApplyLoaderState(job);
+  } catch (e) {
+    // Polling-Fehler nicht eskalieren – nächster Versuch folgt automatisch.
+    console.warn('Job-Status:', e.message);
+  } finally {
+    genFetching = false;
+  }
+}
+
+/* ============================================================
+   Vorschau (Review) – Folienpaare, Auswahl, Lightbox
+   ============================================================ */
+/* Importierte Präsentationen haben ein Bild je Folie und keine A/B-Fassungen —
+   der Auswahl- und Endfassungsweg gilt für sie nicht. */
+function genIstImport() {
+  return !!(genJob && genJob.manifest && genJob.manifest.import);
+}
+
+function genManifestSlides() {
+  const m = genJob && genJob.manifest;
+  if (!m || !Array.isArray(m.slides)) return [];
+  return m.slides.slice().sort(function (a, b) { return (a.position || 0) - (b.position || 0); });
+}
+
+function genRenderReview() {
+  // Uploads gehören der ganzen Kette; einmal laden, dann die Icons markieren.
+  genLoadUploads();
+  const slides = genManifestSlides();
+  // Bewusst KEINE Vorbelegung: eine automatisch gesetzte Variante sieht aus
+  // wie eine getroffene Entscheidung. Gespeicherte Auswahl wird übernommen.
+  genUebernehmeSelection(genJob && genJob.selection);
+
+  const isFeedback = !!(genJob && genJob.parent_job);
+  document.getElementById('review-title').innerHTML =
+    esc((genJob && genJob.title) || 'Präsentation') +
+    (isFeedback ? ' <span class="badge badge-orange">Überarbeitete Version</span>' : '');
+
+  const root = document.getElementById('slides');
+  root.innerHTML = '';
+
+  if (genIstImport()) {
+    // Nur anzeigen: keine Variantenwahl, kein Löschen einzelner Fassungen.
+    root.innerHTML = slides.map(function (s) {
+      const url = genPreviews[s.png] || '';
+      return '<div class="slide-block" id="block-' + esc(s.position) + '">' +
+        '<div class="slide-head">' +
+          '<span class="folie-no">FOLIE ' + esc(s.position) + '</span>' +
+          '<span class="slide-title">' + esc(s.title || '') + '</span>' +
+        '</div>' +
+        '<div class="variant sel" style="max-width:760px">' +
+          '<div class="thumb"><img src="' + esc(url) + '" alt="Folie ' + esc(s.position) + '" loading="lazy"></div>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+    document.getElementById('end-note').textContent =
+      slides.length ? ('Ende der Vorschau · ' + slides.length + ' Folien') : 'Keine Folien gefunden.';
+    document.getElementById('job-status-card').hidden = true;
+    document.getElementById('job-review').hidden = false;
+    document.getElementById('kk-insel').hidden = false;
+    genJobCrumb(genJob && genJob.title);
+    genAktualisiereInsel(0, 0);
+    genObserveBlocks();
+    window.scrollTo(0, 0);
+    return;
+  }
+
+  slides.forEach(function (s) {
+    const block = document.createElement('div');
+    block.className = 'slide-block';
+    block.id = 'block-' + s.position;
+    block.innerHTML =
+      '<div class="slide-head">' +
+        '<span class="folie-no">FOLIE ' + esc(s.position) + '</span>' +
+        '<span class="slide-title">' + esc(s.title || '') + '</span>' +
+        '<span class="chosen-hint">Ausgewählt: <b id="chosen-' + esc(s.position) + '">Variante A</b></span>' +
+        '<div class="icon-actions" style="margin-left:auto">' +
+          '<button class="icon-btn" title="Diese Folie ganz löschen" onclick="genDeleteSlide(' + Number(s.position) + ')">' +
+            '<svg viewBox="0 0 24 24" stroke-width="2"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M10 11v6M14 11v6"/></svg>' +
+          '</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="variant-grid">' +
+        genVariantCard(s, 'a') +
+        genVariantCard(s, 'b') +
+      '</div>';
+    root.appendChild(block);
+  });
+  document.getElementById('end-note').textContent =
+    slides.length ? ('Ende der Vorschau · ' + slides.length + ' Folien') : 'Keine Folien im Manifest gefunden.';
+  document.getElementById('feedback-text').value = '';
+
+  document.getElementById('job-status-card').hidden = true;
+  document.getElementById('job-review').hidden = false;
+  document.getElementById('kk-insel').hidden = false;
+  genJobCrumb(genJob && genJob.title);
+  genApplySelection();
+  genObserveBlocks();
+  if (genHoleZielFolie(genJobId)) {
+    // Erst nach dem Layout springen, sonst steht die Höhe noch nicht fest
+    requestAnimationFrame(genSpringeZurZielfolie);
+  } else {
+    window.scrollTo(0, 0);
+  }
+}
+
+function genVariantCard(s, v) {
+  const png = v === 'a' ? s.a_png : s.b_png;
+  const url = genPreviews[png] || '';
+  const name = v === 'a' ? 'Variante A' : 'Variante B';
+  return '<div class="variant" id="var-' + esc(s.position) + '-' + v + '">' +
+    '<div class="variant-top">' +
+      '<div class="variant-name"><span class="dot"></span>' + name + '</div>' +
+      '<div class="icon-actions">' +
+        '<button class="icon-btn" title="Diese Variante anpassen" onclick="genOpenSlideEdit(' + Number(s.position) + ',\'' + v + '\')">' +
+          '<svg viewBox="0 0 24 24" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>' +
+        '</button>' +
+        '<button class="icon-btn' + (genUploadFor(s.position, v) ? ' has-img' : '') + '" ' +
+          'title="' + (genUploadFor(s.position, v) ? 'Bild ersetzen oder entfernen' : 'Bild beschreiben oder hochladen') + '" ' +
+          'onclick="genOpenSlideImage(' + Number(s.position) + ',\'' + v + '\')">' +
+          '<svg viewBox="0 0 24 24" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.6"/><path d="M21 15.5L16 10.5 5 21"/></svg>' +
+        '</button>' +
+        '<button class="icon-btn" title="Diese Fassung verwerfen – die andere gilt dann" onclick="genPick(' + Number(s.position) + ',\'' + (v === 'a' ? 'b' : 'a') + '\')">' +
+          '<svg viewBox="0 0 24 24" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>' +
+        '</button>' +
+      '</div>' +
+    '</div>' +
+    '<div class="thumb" onclick="genOpenLb(' + Number(s.position) + ',\'' + v + '\')">' +
+      '<img src="' + esc(url) + '" alt="Folie ' + esc(s.position) + ' ' + name + '" loading="lazy">' +
+      '<div class="zoom-cue">Vollbild</div>' +
+    '</div>' +
+    '<div class="variant-foot">' +
+      '<button class="select-btn" onclick="genPick(' + Number(s.position) + ',\'' + v + '\')"><span>Diese Variante wählen</span></button>' +
+    '</div>' +
+  '</div>';
+}
+
+function genPick(position, v) {
+  // Erneuter Klick auf die gewählte Fassung hebt die Wahl wieder auf
+  if (genSel[position] === v) delete genSel[position];
+  else genSel[position] = v;
+  genApplySelection();
+  genSpeichereSelection();
+}
+
+/* Die nicht gewählte Fassung wird sichtbar zurückgenommen: Sie ist verworfen,
+   nicht gelöscht — die Endfassung enthält ohnehin nur die gewählte. */
+function genApplySelection() {
+  const slides = genManifestSlides();
+  let a = 0, b = 0;
+  slides.forEach(function (s) {
+    const pick = genSel[s.position] || null;   // null = noch nicht entschieden
+    if (pick === 'a') a++;
+    if (pick === 'b') b++;
+    ['a', 'b'].forEach(function (v) {
+      const card = document.getElementById('var-' + s.position + '-' + v);
+      if (!card) return;
+      const on = pick === v;
+      card.classList.toggle('sel', on);
+      // Ohne Entscheidung bleiben BEIDE normal — nichts wird zurückgenommen
+      card.classList.toggle('verworfen', pick !== null && !on);
+      const span = card.querySelector('.select-btn span');
+      if (span) span.textContent = on ? 'Ausgewählt · abwählen' : 'Diese Variante wählen';
+    });
+    const ch = document.getElementById('chosen-' + s.position);
+    if (ch) {
+      ch.textContent = pick === 'a' ? 'Variante A' : (pick === 'b' ? 'Variante B' : 'noch offen');
+    }
+  });
+  document.getElementById('cnt-a').textContent = a;
+  document.getElementById('cnt-b').textContent = b;
+  genAktualisiereInsel(slides.length, a + b);
+}
+
+/* Die Insel zeigt an, ob schon alles entschieden ist — der Download braucht
+   eine Wahl für JEDE Folie, sonst weist komkom-finalize ihn ab. */
+function genAktualisiereInsel(gesamt, gewaehlt) {
+  const btn = document.getElementById('btn-finalize');
+  const hinweis = document.getElementById('insel-hinweis');
+  if (!btn || !hinweis) return;
+  if (genIstImport()) {
+    // Es gibt nichts zu wählen — die hochgeladene Datei ist die Endfassung.
+    btn.disabled = false;
+    btn.textContent = 'Download';
+    hinweis.textContent = '';
+    return;
+  }
+  const offen = gesamt - gewaehlt;
+  btn.disabled = offen > 0;
+  hinweis.textContent = offen > 0
+    ? (offen === 1 ? 'Noch 1 Folie ohne Auswahl' : 'Noch ' + offen + ' Folien ohne Auswahl')
+    : '';
+}
+
+/* Gespeicherte Auswahl übernehmen ( [{position, pick}] ) */
+function genUebernehmeSelection(gespeichert) {
+  genSel = {};
+  if (!Array.isArray(gespeichert)) return;
+  gespeichert.forEach(function (e) {
+    if (e && (e.pick === 'a' || e.pick === 'b')) genSel[e.position] = e.pick;
+  });
+}
+
+/* Auswahl als Liste, wie komkom-finalize sie erwartet */
+function genSelectionListe() {
+  return genManifestSlides()
+    .filter(function (s) { return genSel[s.position] === 'a' || genSel[s.position] === 'b'; })
+    .map(function (s) { return { position: s.position, pick: genSel[s.position] }; });
+}
+
+/* Sofort speichern, aber gebündelt: beim Durchklicken sonst ein Schreibvorgang
+   je Klick. Nur die Spalte `selection` ist überhaupt schreibbar. */
+let genSpeicherTimer = null;
+function genSpeichereSelection() {
+  if (!genJobId) return;
+  clearTimeout(genSpeicherTimer);
+  const jobId = genJobId;
+  const liste = genSelectionListe();
+  genSpeicherTimer = setTimeout(async function () {
+    try {
+      const { error } = await sb.schema('customer_content').from('komkom_pptx_jobs')
+        .update({ selection: liste }).eq('id', jobId);
+      if (error) throw error;
+    } catch (e) {
+      genToast('Auswahl konnte nicht gespeichert werden: ' + e.message);
+    }
+  }, 500);
+}
+
+/* Scroll-Positionsanzeige */
+function genObserveBlocks() {
+  if (genIo) genIo.disconnect();
+  const slides = genManifestSlides();
+  const total = slides.length;
+  document.getElementById('scroll-pos').textContent = total ? ('Folie 1 / ' + total) : '';
+  genIo = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (!e.isIntersecting) return;
+      const pos = e.target.id.split('-')[1];
+      const idx = slides.findIndex(function (s) { return String(s.position) === String(pos); });
+      if (idx !== -1) document.getElementById('scroll-pos').textContent = 'Folie ' + (idx + 1) + ' / ' + total;
+    });
+  }, { rootMargin: '-45% 0px -45% 0px' });
+  slides.forEach(function (s) {
+    const b = document.getElementById('block-' + s.position);
+    if (b) genIo.observe(b);
+  });
+}
+
+/* ---------- Lightbox ---------- */
+let genLbList = [];
+let genLbPos = 0;
+function genBuildLbList() {
+  genLbList = [];
+  genManifestSlides().forEach(function (s) {
+    genLbList.push({ position: s.position, title: s.title || '', v: 'a', png: s.a_png });
+    genLbList.push({ position: s.position, title: s.title || '', v: 'b', png: s.b_png });
+  });
+}
+function genOpenLb(position, v) {
+  genBuildLbList();
+  genLbPos = Math.max(0, genLbList.findIndex(function (x) {
+    return String(x.position) === String(position) && x.v === v;
+  }));
+  genPaintLb();
+  document.getElementById('lightbox').classList.add('open');
+}
+function genPaintLb() {
+  if (!genLbList.length) return;
+  const it = genLbList[genLbPos];
+  document.getElementById('lb-img').src = genPreviews[it.png] || '';
+  document.getElementById('lb-cap').innerHTML =
+    'Folie ' + esc(it.position) + ' · ' + esc(it.title) +
+    ' · <span>Variante ' + (it.v === 'a' ? 'A' : 'B') + '</span>';
+}
+function genNavLb(d) {
+  if (!genLbList.length) return;
+  genLbPos = (genLbPos + d + genLbList.length) % genLbList.length;
+  genPaintLb();
+}
+function genCloseLb() { document.getElementById('lightbox').classList.remove('open'); }
+document.addEventListener('keydown', function (e) {
+  if (!document.getElementById('lightbox').classList.contains('open')) return;
+  if (e.key === 'Escape') genCloseLb();
+  if (e.key === 'ArrowRight') genNavLb(1);
+  if (e.key === 'ArrowLeft') genNavLb(-1);
+});
+document.getElementById('lightbox').addEventListener('click', function (e) {
+  if (e.target.id === 'lightbox') genCloseLb();
+});
+
+/* ============================================================
+   Anpassung pro Folie: Modal, dann Anpassungs-Job über submit-feedback
+   ============================================================ */
+function genOpenSlideEdit(position, v) {
+  const s = genManifestSlides().find(function (x) { return String(x.position) === String(position); });
+  if (!s || !genJobId) return;
+  const vName = v === 'a' ? 'A' : 'B';
+
+  const overlay = document.createElement('div');
+  overlay.className = 'kk-modal-overlay';
+  overlay.innerHTML =
+    '<div class="kk-modal" style="max-width:560px">' +
+      '<div class="kk-modal-head"><div>' +
+        '<h2>Folie ' + esc(s.position) + ' &middot; Variante ' + vName + ' anpassen</h2>' +
+        '<div class="modal-sub">Beschreibe, was an dieser Folie geändert werden soll – alle anderen Folien bleiben unverändert.</div>' +
+      '</div><button class="kk-modal-close" title="Schließen">&times;</button></div>' +
+      '<div class="kk-modal-body">' +
+        '<div class="gen-field" style="margin-top:0">' +
+          '<label for="slide-edit-text">Änderungswunsch</label>' +
+          '<textarea id="slide-edit-text" style="min-height:120px" placeholder="z. B. „Das Zitat größer setzen und die Grafik nach rechts verschieben.&#8220;"></textarea>' +
+        '</div>' +
+      '</div>' +
+      '<div class="kk-modal-foot"><div></div><div style="display:flex;gap:10px">' +
+        '<button class="btn btn-sm btn-outline" data-act="cancel">Abbrechen</button>' +
+        '<button class="btn btn-sm" data-act="send">Anpassung senden</button>' +
+      '</div></div>' +
+    '</div>';
+
+  function close() {
+    document.removeEventListener('keydown', escHandler);
+    overlay.remove();
+  }
+  function escHandler(e) { if (e.key === 'Escape') close(); }
+
+  async function send() {
+    const ta = overlay.querySelector('#slide-edit-text');
+    const text = ta.value.trim();
+    if (text.length < 3) {
+      genToast('Bitte den Änderungswunsch kurz beschreiben.');
+      return;
+    }
+    // Automatischer Anpassungstext: benennt exakt Folie, Titel und Variante.
+    const inputText =
+      'Anpassung an Folie ' + s.position + ' („' + (s.title || 'ohne Titel') + '“), Variante ' + vName + ': ' + text +
+      '\nAlle anderen Folien und die jeweils andere Variante unverändert lassen.';
+    genLastRequest = { type: 'feedback', payload: { parent_job: genJobId, input_text: inputText } };
+    const btn = overlay.querySelector('[data-act="send"]');
+    btn.disabled = true;
+    btn.textContent = 'Wird gesendet …';
+    try {
+      const resp = await kkApi('/komkom-submit-feedback', {
+        method: 'POST',
+        body: JSON.stringify(genLastRequest.payload)
+      });
+      close();
+      genMerkeZielFolie(resp.job_id, s.position);
+      genToast('Anpassung gesendet – eine überarbeitete Version wird erstellt.');
+      location.hash = '#job=' + resp.job_id;
+    } catch (e) {
+      genToast('Anpassung konnte nicht gesendet werden: ' + e.message);
+      btn.disabled = false;
+      btn.textContent = 'Anpassung senden';
+    }
+  }
+
+  overlay.querySelector('.kk-modal-close').addEventListener('click', close);
+  overlay.querySelector('[data-act="cancel"]').addEventListener('click', close);
+  overlay.querySelector('[data-act="send"]').addEventListener('click', send);
+  overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+  document.addEventListener('keydown', escHandler);
+
+  document.body.appendChild(overlay);
+  overlay.querySelector('#slide-edit-text').focus();
+}
+
+/* ============================================================
+   Eigene Präsentation hochladen ('#import')
+   Zwei Schritte: Job anlegen + signierte Upload-Adresse holen, Datei direkt
+   dorthin schicken, dann starten. So wandert die Datei nie durch eine
+   Edge Function.
+   ============================================================ */
+let impDatei = null;
+
+function impDateiWaehlen(file) {
+  const info = document.getElementById('imp-datei-info');
+  const err = document.getElementById('imp-error');
+  err.hidden = true;
+  if (!file) return;
+  if (!/\.pptx$/i.test(file.name)) {
+    err.textContent = 'Bitte eine .pptx-Datei wählen. Andere Formate kann der Generator nicht rendern.';
+    err.hidden = false;
+    impDatei = null;
+    info.textContent = '';
+    return;
+  }
+  impDatei = file;
+  info.innerHTML = '<b>' + esc(file.name) + '</b> · ' + Math.round(file.size / 1024) + ' KB';
+  const titel = document.getElementById('imp-titel');
+  if (!titel.value.trim()) titel.value = file.name.replace(/\.pptx$/i, '');
+  // Kein extra Knopf: Auswählen ist die Zusage. Die Vorschau entsteht sofort.
+  impHochladen();
+}
+
+(function impInitDrop() {
+  const drop = document.getElementById('imp-drop');
+  if (!drop) return;
+  ['dragenter', 'dragover'].forEach(function (ev) {
+    drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('over'); });
+  });
+  ['dragleave', 'drop'].forEach(function (ev) {
+    drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('over'); });
+  });
+  drop.addEventListener('drop', function (e) {
+    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) impDateiWaehlen(f);
+  });
+})();
+
+async function impHochladen() {
+  const err = document.getElementById('imp-error');
+  const text = document.getElementById('imp-status-text');
+  err.hidden = true;
+  if (!impDatei) return;
+
+  // Ablagefläche sofort ausblenden — der Vorgang läuft ab hier von selbst
+  document.getElementById('imp-dateifeld').hidden = true;
+  document.getElementById('imp-ergebnis').hidden = false;
+  text.textContent = 'Datei wird übertragen …';
+  try {
+    const anlegen = await kkApi('/komkom-import-deck', {
+      method: 'POST',
+      body: JSON.stringify({
+        aktion: 'anlegen',
+        titel: document.getElementById('imp-titel').value.trim(),
+        wunsch: document.getElementById('imp-wunsch').value.trim()
+      })
+    });
+
+
+    // Direkt gegen die signierte Adresse — der Bucket ist privat, aber der
+    // Token erlaubt genau diesen einen Upload.
+    const { error: upError } = await sb.storage.from(anlegen.bucket)
+      .uploadToSignedUrl(anlegen.pfad, anlegen.token, impDatei, {
+        contentType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+      });
+    if (upError) throw upError;
+
+    text.textContent = 'Vorschau wird erstellt …';
+    await kkApi('/komkom-import-deck', {
+      method: 'POST',
+      body: JSON.stringify({ aktion: 'starten', job_id: anlegen.job_id })
+    });
+
+    document.getElementById('imp-foot').hidden = true;
+    document.getElementById('btn-imp-oeffnen').onclick = function () {
+      location.hash = '#job=' + anlegen.job_id;
+    };
+    genToast('Präsentation hochgeladen – die Vorschau wird erstellt.');
+    impBeobachte(anlegen.job_id);
+  } catch (e) {
+    err.textContent = 'Hochladen fehlgeschlagen: ' + (e.message || e);
+    err.hidden = false;
+    // Zurück zur Ablagefläche, damit ein zweiter Versuch möglich ist
+    document.getElementById('imp-ergebnis').hidden = true;
+    document.getElementById('imp-dateifeld').hidden = false;
+    document.getElementById('imp-file').value = '';
+    impDatei = null;
+  }
+}
+
+/* Auf die gerenderte Vorschau warten und sie an Ort und Stelle zeigen.
+   Reines Nachfragen im Takt — Realtime brächte hier keine Signed URLs. */
+let impTimer = null;
+function impBeobachte(jobId) {
+  clearInterval(impTimer);
+  const text = document.getElementById('imp-status-text');
+  const detail = document.getElementById('imp-status-detail');
+  const box = document.getElementById('imp-vorschau');
+  const status = document.getElementById('imp-status');
+
+  async function schau() {
+    try {
+      const resp = await kkApi('/komkom-job-status?job_id=' + encodeURIComponent(jobId));
+      const job = resp.job;
+      if (!job) return;
+
+      if (job.status === 'error') {
+        clearInterval(impTimer);
+        status.hidden = true;
+        const err = document.getElementById('imp-error');
+        err.textContent = job.error || 'Die Vorschau konnte nicht erstellt werden.';
+        err.hidden = false;
+        document.getElementById('imp-foot-fertig').hidden = false;
+        return;
+      }
+
+      if (typeof job.progress === 'number' && job.progress > 0) {
+        detail.textContent = Math.round(job.progress) + ' % – die Folien werden aus der Datei gerendert.';
+      }
+
+      const slides = (job.manifest && Array.isArray(job.manifest.slides)) ? job.manifest.slides : [];
+      const urls = (resp.urls && resp.urls.previews) || {};
+      if (job.status === 'preview_ready' && slides.length) {
+        clearInterval(impTimer);
+        status.hidden = true;
+        box.innerHTML = slides
+          .slice()
+          .sort(function (a, b) { return (a.position || 0) - (b.position || 0); })
+          .map(function (sl) {
+            const u = urls[sl.png] || urls[sl.a_png] || '';
+            return '<figure>' +
+              '<img src="' + esc(u) + '" alt="Folie ' + esc(sl.position) + '" loading="lazy">' +
+              '<figcaption>Folie ' + esc(sl.position) + '</figcaption>' +
+            '</figure>';
+          }).join('');
+        document.getElementById('imp-foot-fertig').hidden = false;
+        genToast(slides.length + ' Folien gerendert.');
+      }
+    } catch (e) {
+      // still weiter versuchen; ein Aussetzer soll die Anzeige nicht abbrechen
+    }
+  }
+
+  schau();
+  impTimer = setInterval(schau, 3000);
+}
+
+/* Formular für den nächsten Upload zurücksetzen */
+function impNeu() {
+  clearInterval(impTimer);
+  impDatei = null;
+  ['imp-titel', 'imp-wunsch'].forEach(function (id) { document.getElementById(id).value = ''; });
+  document.getElementById('imp-file').value = '';
+  document.getElementById('imp-datei-info').textContent = '';
+  document.getElementById('imp-vorschau').innerHTML = '';
+  document.getElementById('imp-status').hidden = false;
+  document.getElementById('imp-status-detail').textContent = 'Die Folien werden direkt aus der Datei gerendert.';
+  document.getElementById('imp-ergebnis').hidden = true;
+  document.getElementById('imp-foot-fertig').hidden = true;
+  document.getElementById('imp-dateifeld').hidden = false;
+  document.getElementById('imp-foot').hidden = false;
+  document.getElementById('imp-error').hidden = true;
+}
+
+/* ============================================================
+   Präsentation löschen — Titel muss eingetippt werden
+   ============================================================ */
+async function genLoeschenDialog(jobId) {
+  if (!jobId) return;
+
+  // Titel und Umfang der Kette ermitteln, damit der Dialog nicht raten muss
+  let titel = 'Ohne Titel', anzahl = 1;
+  try {
+    const { data: rows } = await sb.schema('customer_content').from('komkom_pptx_jobs')
+      .select('id,title,parent_job');
+    const byId = {};
+    (rows || []).forEach(function (r) { byId[r.id] = r; });
+    let wurzel = byId[jobId];
+    for (let i = 0; wurzel && wurzel.parent_job && byId[wurzel.parent_job] && i < 50; i++) {
+      wurzel = byId[wurzel.parent_job];
+    }
+    if (wurzel) {
+      titel = (wurzel.title || 'Ohne Titel').trim();
+      // Kette zählen
+      const kinder = {};
+      (rows || []).forEach(function (r) {
+        if (r.parent_job) (kinder[r.parent_job] = kinder[r.parent_job] || []).push(r.id);
+      });
+      const stapel = [wurzel.id]; const gesehen = {};
+      while (stapel.length) {
+        const id = stapel.pop();
+        if (gesehen[id]) continue;
+        gesehen[id] = true;
+        (kinder[id] || []).forEach(function (k) { stapel.push(k); });
+      }
+      anzahl = Object.keys(gesehen).length;
+    }
+  } catch (e) { /* Dialog geht auch ohne diese Angaben */ }
+
+  const overlay = document.createElement('div');
+  overlay.className = 'kk-modal-overlay';
+  overlay.innerHTML =
+    '<div class="kk-modal" style="max-width:520px">' +
+      '<div class="kk-modal-head"><div>' +
+        '<h2>Präsentation löschen</h2>' +
+        '<div class="modal-sub">' + anzahl + ' Version' + (anzahl === 1 ? '' : 'en') +
+          ', alle Vorschaubilder und Dateien. Nicht rückgängig zu machen.</div>' +
+      '</div><button class="kk-modal-close" title="Schließen">&times;</button></div>' +
+      '<div class="kk-modal-body">' +
+        '<p>Gib zur Bestätigung den Titel ein: <span class="loesch-titel">' + esc(titel) + '</span></p>' +
+        '<div class="gen-field" style="margin-top:14px">' +
+          '<label for="loesch-eingabe">Titel</label>' +
+          '<input type="text" id="loesch-eingabe" autocomplete="off" placeholder="' + esc(titel) + '">' +
+        '</div>' +
+        '<div class="gen-error" data-act="error" hidden></div>' +
+      '</div>' +
+      '<div class="kk-modal-foot"><div></div><div style="display:flex;gap:10px">' +
+        '<button class="btn btn-sm btn-outline" data-act="cancel">Abbrechen</button>' +
+        '<button class="btn btn-sm" data-act="del" disabled>Endgültig löschen</button>' +
+      '</div></div>' +
+    '</div>';
+
+  const q = function (a) { return overlay.querySelector('[data-act="' + a + '"]'); };
+  function close() {
+    document.removeEventListener('keydown', esc2);
+    overlay.remove();
+  }
+  function esc2(e) { if (e.key === 'Escape') close(); }
+
+  document.body.appendChild(overlay);
+  const feld = overlay.querySelector('#loesch-eingabe');
+  const knopf = q('del');
+  // Der Knopf bleibt gesperrt, bis der Titel stimmt — kein Fehlklick möglich
+  feld.addEventListener('input', function () {
+    knopf.disabled = feld.value.trim().toLowerCase() !== titel.toLowerCase();
+  });
+  feld.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !knopf.disabled) knopf.click();
+  });
+
+  knopf.addEventListener('click', async function () {
+    knopf.disabled = true;
+    knopf.textContent = 'Wird gelöscht …';
+    try {
+      const resp = await kkApi('/komkom-delete-deck', {
+        method: 'POST',
+        body: JSON.stringify({ job_id: jobId, titel: feld.value.trim() })
+      });
+      close();
+      genToast('Präsentation gelöscht (' + resp.jobs + ' Versionen, ' + resp.dateien + ' Dateien).');
+      genStopWatching();
+      location.hash = '';
+      genLoadOverview();
+    } catch (e) {
+      q('error').textContent = 'Löschen fehlgeschlagen: ' + e.message;
+      q('error').hidden = false;
+      knopf.disabled = false;
+      knopf.textContent = 'Endgültig löschen';
+    }
+  });
+  overlay.querySelector('.kk-modal-close').addEventListener('click', close);
+  q('cancel').addEventListener('click', close);
+  overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+  document.addEventListener('keydown', esc2);
+  feld.focus();
+}
+
+/* ============================================================
+   Folie löschen
+   Zwei Dinge müssen zusammenpassen, sonst geraten die Folien danach
+   durcheinander: die Positionen im Deck-Plan (macht der Skill) und die
+   Positionen in den hochgeladenen Bildern (macht komkom-slide-image,
+   inklusive Umbenennen der Dateien).
+   ============================================================ */
+async function genDeleteSlide(position) {
+  const slides = genManifestSlides();
+  const s = slides.find(function (x) { return String(x.position) === String(position); });
+  if (!s || !genJobId) return;
+  if (slides.length <= 1) {
+    genToast('Die letzte verbleibende Folie lässt sich nicht löschen.');
+    return;
+  }
+
+  const titel = s.title || 'ohne Titel';
+  const danach = slides.length - 1;
+  if (!window.confirm(
+    'Folie ' + position + ' („' + titel + '“) mit beiden Varianten löschen?\n\n' +
+    'Die Präsentation hat danach ' + danach + ' statt ' + slides.length + ' Folien; ' +
+    'die nachfolgenden rücken auf. Eine überarbeitete Version wird erstellt.'
+  )) return;
+
+  try {
+    // 1) Erst die Bildzuordnung nachziehen: Bilder dieser Folie entfernen,
+    //    alle dahinter um eine Position nach vorn. Muss VOR der neuen Runde
+    //    passieren, damit der Worker schon die richtige Zuordnung vorfindet.
+    const resp = await kkApi('/komkom-slide-image', {
+      method: 'POST',
+      body: JSON.stringify({
+        aktion: 'folie-entfernen', job_id: genJobId, position: position, variante: 'a'
+      })
+    });
+    genUploads = resp.images || [];
+
+    // 2) Dann die Anpassungsrunde. Die Folie wird über Position UND Titel
+    //    benannt — nach dem Löschen stimmen die Positionen nicht mehr, der
+    //    Titel bleibt die eindeutige Kennung.
+    const inputText =
+      'Lösche die Folie an Position ' + position + ' („' + titel + '“) vollständig aus deckplan.json — ' +
+      'mit beiden Varianten.\n' +
+      'Die übrigen ' + danach + ' Folien behalten Inhalt und Reihenfolge unverändert; ' +
+      'ihre Positionen rücken lückenlos auf, sodass wieder von 1 bis ' + danach + ' durchnummeriert wird.\n' +
+      'combined.pptx und manifest.json danach vollständig neu rendern, sodass ' +
+      'slide_count = ' + danach + ' ist und die Indizes zur neuen Reihenfolge passen.\n' +
+      'An keiner anderen Folie inhaltlich etwas ändern.';
+
+    genLastRequest = { type: 'feedback', payload: { parent_job: genJobId, input_text: inputText } };
+    const fb = await kkApi('/komkom-submit-feedback', {
+      method: 'POST',
+      body: JSON.stringify(genLastRequest.payload)
+    });
+    genToast('Folie wird entfernt – eine überarbeitete Version wird erstellt.');
+    location.hash = '#job=' + fb.job_id;
+  } catch (e) {
+    genToast('Löschen fehlgeschlagen: ' + e.message);
+  }
+}
+
+/* ============================================================
+   Folienbilder: generieren, aus einer Mediathek wählen oder hochladen
+   Ablage -> komkom-slide-image (am Wurzel-Job der Kette)
+   Umsetzung auf der Folie -> normale Anpassungsrunde (Session-Resume)
+   ============================================================ */
+const SIMG_MAX_EDGE = 1920;
+const SIMG_QUALITY = 0.88;
+
+function genUploadFor(position, v) {
+  return genUploads.find(function (u) {
+    return String(u.position) === String(position) && u.variante === v;
+  }) || null;
+}
+
+/* Uploads der Kette holen; Fehler bleiben still — die Vorschau ist wichtiger */
+async function genLoadUploads() {
+  if (!genJobId) return;
+  const jobId = genJobId;
+  try {
+    const resp = await kkApi('/komkom-slide-image?job_id=' + encodeURIComponent(jobId));
+    if (jobId !== genJobId) return;
+    genUploads = resp.images || [];
+    genRefreshImageIcons();
+  } catch (e) {
+    genUploads = [];
+  }
+}
+
+/* Nur die Icons nachziehen, ohne die ganze Vorschau neu zu bauen */
+function genRefreshImageIcons() {
+  genManifestSlides().forEach(function (s) {
+    ['a', 'b'].forEach(function (v) {
+      const card = document.getElementById('var-' + s.position + '-' + v);
+      if (!card) return;
+      const btn = card.querySelectorAll('.icon-btn')[1];
+      if (!btn) return;
+      const hat = !!genUploadFor(s.position, v);
+      btn.classList.toggle('has-img', hat);
+      btn.title = hat ? 'Bild ersetzen oder entfernen' : 'Bild beschreiben, wählen oder hochladen';
+    });
+  });
+}
+
+/* Datei einlesen und auf Präsentationsgröße herunterrechnen */
+function genPrepareImage(file) {
+  return new Promise(function (resolve, reject) {
+    if (!/^image\/(png|jpeg|webp)$/.test(file.type)) {
+      reject(new Error('Nur PNG, JPEG oder WebP.'));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = function () {
+      const img = new Image();
+      img.onload = function () {
+        const scale = Math.min(1, SIMG_MAX_EDGE / Math.max(img.width, img.height));
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL('image/jpeg', SIMG_QUALITY);
+        resolve({
+          dataUrl: dataUrl, mime: 'image/jpeg', w: w, h: h,
+          ow: img.width, oh: img.height, name: file.name,
+          bytes: Math.round((dataUrl.length - dataUrl.indexOf(',') - 1) * 0.75)
+        });
+      };
+      img.onerror = function () { reject(new Error('Bild konnte nicht gelesen werden.')); };
+      img.src = reader.result;
+    };
+    reader.onerror = function () { reject(new Error('Datei konnte nicht gelesen werden.')); };
+    reader.readAsDataURL(file);
+  });
+}
+
+function genOpenSlideImage(position, v) {
+  const s = genManifestSlides().find(function (x) { return String(x.position) === String(position); });
+  if (!s || !genJobId) return;
+  const vName = v === 'a' ? 'A' : 'B';
+  const vorhanden = genUploadFor(position, v);
+
+  // Es gilt immer nur EINE Bildquelle; beim Seitenwechsel werden die
+  // anderen verworfen, damit nicht unklar bleibt, was gesendet wird.
+  let gewaehlt = null;       // vorbereitete Datei
+  let ausBibliothek = null;  // slug einer Referenz
+  let ausMediathek = null;   // Pfad eines erzeugten Bildes
+
+  const overlay = document.createElement('div');
+  overlay.className = 'kk-modal-overlay';
+  overlay.innerHTML =
+    '<div class="kk-modal" style="max-width:960px">' +
+      '<div class="kk-modal-head"><div>' +
+        '<h2>Folie ' + esc(s.position) + ' &middot; Variante ' + vName + ' &middot; Bild</h2>' +
+        '<div class="modal-sub">Ein gewähltes oder hochgeladenes Bild hat Vorrang. Ohne eines wird nach deiner Beschreibung erzeugt.</div>' +
+      '</div><button class="kk-modal-close" title="Schließen">&times;</button></div>' +
+      '<div class="kk-modal-body">' +
+        (vorhanden
+          ? '<div class="gen-field" style="margin-top:0">' +
+              '<label>Aktuell hinterlegt</label>' +
+              '<div class="simg-current">' +
+                (vorhanden.url ? '<img src="' + esc(vorhanden.url) + '" alt="Hinterlegtes Bild">' : '') +
+                '<div class="meta">' +
+                  (vorhanden.hinweis ? esc(vorhanden.hinweis) + '<br>' : '') +
+                  'Wird auf dieser Folie eingebettet, statt eines zu erzeugen.' +
+                  '<br><button class="btn btn-sm btn-outline" data-act="remove" style="margin-top:8px">Bild entfernen</button>' +
+                '</div>' +
+              '</div>' +
+            '</div>'
+          : '') +
+        '<div class="simg-tabs">' +
+          '<button class="btn btn-sm" data-act="tab-gen">1 &middot; Generieren</button>' +
+          '<button class="btn btn-sm btn-outline" data-act="tab-med">2 &middot; Mediathek</button>' +
+          '<button class="btn btn-sm btn-outline" data-act="tab-datei">3 &middot; Datei hochladen</button>' +
+        '</div>' +
+        '<div data-act="seite-gen">' +
+          '<div class="gen-field" style="margin-top:0">' +
+            '<label for="simg-text">Bild beschreiben</label>' +
+            '<textarea id="simg-text" style="min-height:120px" placeholder="z. B. eine Drohne, deren Rotorblätter mit einer Krawatte zusammengeschnürt sind"></textarea>' +
+            '<div class="gen-note">Nur das <b>Motiv</b> beschreiben. Licht, Farbwelt und Komposition kommen aus dem hinterlegten Bildstil.</div>' +
+          '</div>' +
+        '</div>' +
+        '<div data-act="seite-med" hidden>' +
+          '<div class="simg-zwei">' +
+            '<div class="simg-spalte">' +
+              '<h4>Erzeugte Bilder</h4>' +
+              '<div class="simg-gal" data-act="gal-med"><div class="simg-gal-empty">wird geladen …</div></div>' +
+            '</div>' +
+            '<div class="simg-spalte">' +
+              '<h4>Bilder-Bibliothek (Referenzen)</h4>' +
+              '<div class="simg-gal" data-act="gal"><div class="simg-gal-empty">wird geladen …</div></div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div data-act="seite-datei" hidden>' +
+          '<div class="ref-drop" data-act="pick">' +
+            '<p><strong>Bild hierher ziehen</strong> oder klicken zum Auswählen<br>' +
+            'PNG, JPEG oder WebP &middot; 16:9 empfohlen<br>' +
+            '<span class="gen-note">Die Datei lässt sich auch irgendwo im Fenster fallen lassen.</span></p>' +
+          '</div>' +
+          '<input type="file" data-act="file" accept="image/png,image/jpeg,image/webp" hidden>' +
+          '<div class="ref-preview" data-act="preview" hidden>' +
+            '<img data-act="preview-img" alt="Vorschau des gewählten Bildes">' +
+            '<div class="meta" data-act="preview-meta"></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="gen-error" data-act="error" hidden></div>' +
+      '</div>' +
+      '<div class="kk-modal-foot"><div></div><div style="display:flex;gap:10px">' +
+        '<button class="btn btn-sm btn-outline" data-act="cancel">Abbrechen</button>' +
+        '<button class="btn btn-sm" data-act="send">Senden</button>' +
+      '</div></div>' +
+    '</div>';
+
+  const q = function (a) { return overlay.querySelector('[data-act="' + a + '"]'); };
+  const errEl = q('error');
+  function fehler(msg) { errEl.textContent = msg; errEl.hidden = false; }
+  function close() {
+    document.removeEventListener('keydown', escHandler);
+    overlay.remove();
+  }
+  function escHandler(e) { if (e.key === 'Escape') close(); }
+
+  document.body.appendChild(overlay);
+  const fileInput = q('file');
+  const drop = q('pick');
+
+  function markiere(btn) {
+    overlay.querySelectorAll('.simg-pick').forEach(function (b) { b.classList.remove('on'); });
+    btn.classList.add('on');
+    errEl.hidden = true;
+  }
+
+  function zeigeSeite(welche) {
+    const seiten = { gen: 'seite-gen', med: 'seite-med', datei: 'seite-datei' };
+    Object.keys(seiten).forEach(function (k) { q(seiten[k]).hidden = (k !== welche); });
+    ['gen', 'med', 'datei'].forEach(function (k) {
+      q('tab-' + k).className = 'btn btn-sm' + (k === welche ? '' : ' btn-outline');
+    });
+    if (welche !== 'datei') {
+      gewaehlt = null;
+      q('preview').hidden = true;
+      fileInput.value = '';
+    }
+    if (welche !== 'med') {
+      ausBibliothek = null;
+      ausMediathek = null;
+      overlay.querySelectorAll('.simg-pick').forEach(function (b) { b.classList.remove('on'); });
+    } else {
+      galerienLaden();
+    }
+  }
+
+  let galGeladen = false;
+  async function galerienLaden() {
+    if (galGeladen) return;
+    galGeladen = true;
+
+    const zielMed = q('gal-med');
+    try {
+      const resp = await kkApi('/komkom-slide-image?mediathek=1');
+      const bilder = (resp.bilder || []).filter(function (b) { return b.url; });
+      zielMed.innerHTML = bilder.length
+        ? bilder.map(function (b) {
+            return '<button type="button" class="simg-pick" data-pfad="' + esc(b.pfad) + '">' +
+              '<img src="' + esc(b.url) + '" alt="' + esc(b.name) + '" loading="lazy">' +
+              '<div class="cap">' + esc(b.name) + '</div></button>';
+          }).join('')
+        : '<div class="simg-gal-empty">Noch keine erzeugten Bilder. Sie sammeln sich hier, sobald ein Lauf welche produziert hat.</div>';
+      zielMed.querySelectorAll('.simg-pick').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          markiere(btn);
+          ausMediathek = btn.getAttribute('data-pfad');
+          ausBibliothek = null;
+        });
+      });
+    } catch (e) {
+      galGeladen = false;
+      zielMed.innerHTML = '<div class="simg-gal-empty">Nicht ladbar: ' + esc(e.message) + '</div>';
+    }
+
+    const zielRef = q('gal');
+    try {
+      const resp = await kkApi('/komkom-image-refs');
+      const refs = (resp.refs || []).filter(function (r) { return r.aktiv && r.url; });
+      zielRef.innerHTML = refs.length
+        ? refs.map(function (r) {
+            return '<button type="button" class="simg-pick" data-slug="' + esc(r.slug) + '">' +
+              '<img src="' + esc(r.url) + '" alt="' + esc(r.titel) + '" loading="lazy">' +
+              '<div class="cap">' + esc(r.titel) + '</div></button>';
+          }).join('')
+        : '<div class="simg-gal-empty">Noch keine Referenzen angelegt.</div>';
+      zielRef.querySelectorAll('.simg-pick').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          markiere(btn);
+          ausBibliothek = btn.getAttribute('data-slug');
+          ausMediathek = null;
+        });
+      });
+    } catch (e) {
+      zielRef.innerHTML = '<div class="simg-gal-empty">Nicht ladbar: ' + esc(e.message) + '</div>';
+    }
+  }
+
+  async function dateiWaehlen(file) {
+    if (!file) return;
+    errEl.hidden = true;
+    try {
+      gewaehlt = await genPrepareImage(file);
+      ausBibliothek = null;
+      ausMediathek = null;
+      q('preview-img').src = gewaehlt.dataUrl;
+      q('preview').hidden = false;
+      const ratio = gewaehlt.ow / gewaehlt.oh;
+      q('preview-meta').innerHTML =
+        '<b>' + esc(gewaehlt.name) + '</b><br>' +
+        'Original ' + gewaehlt.ow + '&times;' + gewaehlt.oh + ' px<br>' +
+        'Wird gespeichert als ' + gewaehlt.w + '&times;' + gewaehlt.h + ' px JPEG, ' +
+        Math.round(gewaehlt.bytes / 1024) + ' KB' +
+        (Math.abs(ratio - 16 / 9) > 0.06
+          ? '<br><span class="badge badge-yellow">Kein 16:9</span> Verhältnis ' +
+            esc(ratio.toFixed(2)) + ':1 – wird beim Einbetten zugeschnitten.'
+          : '');
+    } catch (e) {
+      fehler(e.message);
+    }
+  }
+
+  async function entfernen() {
+    const btn = q('remove');
+    btn.disabled = true;
+    btn.textContent = 'Wird entfernt …';
+    try {
+      const resp = await kkApi('/komkom-slide-image', {
+        method: 'POST',
+        body: JSON.stringify({ aktion: 'entfernen', job_id: genJobId, position: position, variante: v })
+      });
+      genUploads = resp.images || [];
+      genRefreshImageIcons();
+      close();
+      genToast('Bild entfernt. Wirksam wird das mit der nächsten Überarbeitung.');
+    } catch (e) {
+      fehler('Entfernen fehlgeschlagen: ' + e.message);
+      btn.disabled = false;
+      btn.textContent = 'Bild entfernen';
+    }
+  }
+
+  async function senden() {
+    const text = overlay.querySelector('#simg-text').value.trim();
+    if (!gewaehlt && !ausBibliothek && !ausMediathek && !text) {
+      fehler('Bitte ein Bild wählen, hochladen oder das gewünschte Motiv beschreiben.');
+      return;
+    }
+    errEl.hidden = true;
+    const btn = q('send');
+    btn.disabled = true;
+
+    try {
+      if (gewaehlt) {
+        btn.textContent = 'Bild wird hochgeladen …';
+        const up = await kkApi('/komkom-slide-image', {
+          method: 'POST',
+          body: JSON.stringify({
+            aktion: 'upload', job_id: genJobId, position: position, variante: v,
+            mime: gewaehlt.mime, bild: gewaehlt.dataUrl, hinweis: text
+          })
+        });
+        genUploads = up.images || [];
+      } else if (ausMediathek) {
+        btn.textContent = 'Bild wird übernommen …';
+        const up = await kkApi('/komkom-slide-image', {
+          method: 'POST',
+          body: JSON.stringify({
+            aktion: 'mediathek', job_id: genJobId, position: position, variante: v,
+            pfad: ausMediathek, hinweis: text
+          })
+        });
+        genUploads = up.images || [];
+      } else if (ausBibliothek) {
+        btn.textContent = 'Bild wird übernommen …';
+        const up = await kkApi('/komkom-slide-image', {
+          method: 'POST',
+          body: JSON.stringify({
+            aktion: 'bibliothek', job_id: genJobId, position: position, variante: v,
+            slug: ausBibliothek, hinweis: text
+          })
+        });
+        genUploads = up.images || [];
+      }
+
+      btn.textContent = 'Wird gesendet …';
+      const kopf = 'Folie ' + s.position + ' („' + (s.title || 'ohne Titel') + '“), Variante ' + vName + ': ';
+      const hatBild = !!(gewaehlt || ausBibliothek || ausMediathek);
+      const inputText = (hatBild
+        ? kopf + 'Verwende das hinterlegte Bild aus images/uploads/ (siehe images/uploads/CONTEXT.json) ' +
+          'als Bild dieser Folie. Für diese Folie und Variante KEIN Bild erzeugen.' +
+          (text ? '\nHinweis zum Einsatz des Bildes: ' + text : '')
+        : kopf + 'Erzeuge das Bild dieser Folie neu. Motiv: ' + text +
+          '\nBildstil, Komposition und Referenzauswahl nach STYLEGUIDE.md.'
+      ) + '\nAlle anderen Folien und die jeweils andere Variante unverändert lassen.';
+
+      genLastRequest = { type: 'feedback', payload: { parent_job: genJobId, input_text: inputText } };
+      const resp = await kkApi('/komkom-submit-feedback', {
+        method: 'POST',
+        body: JSON.stringify(genLastRequest.payload)
+      });
+      close();
+      genMerkeZielFolie(resp.job_id, position);
+      genToast('Wird umgesetzt – eine überarbeitete Version wird erstellt.');
+      location.hash = '#job=' + resp.job_id;
+    } catch (e) {
+      fehler('Fehlgeschlagen: ' + e.message);
+      btn.disabled = false;
+      btn.textContent = 'Senden';
+    }
+  }
+
+  drop.addEventListener('click', function () { fileInput.click(); });
+  fileInput.addEventListener('change', function () { dateiWaehlen(fileInput.files[0]); });
+  q('tab-gen').addEventListener('click', function () { zeigeSeite('gen'); });
+  q('tab-med').addEventListener('click', function () { zeigeSeite('med'); });
+  q('tab-datei').addEventListener('click', function () { zeigeSeite('datei'); });
+
+  /* Ablage im ganzen Fenster: Wer eine Datei irgendwohin zieht, landet auf
+     Seite 3 — statt erst den kleinen Kasten suchen zu müssen. */
+  let vollflaeche = null;
+  let ziehZaehler = 0;
+  function zeigeVollflaeche(an) {
+    if (an && !vollflaeche) {
+      vollflaeche = document.createElement('div');
+      vollflaeche.className = 'simg-vollflaeche';
+      vollflaeche.innerHTML = '<div class="rahmen"><strong>Bild hier fallen lassen</strong>' +
+        '<span>PNG, JPEG oder WebP</span></div>';
+      overlay.appendChild(vollflaeche);
+    } else if (!an && vollflaeche) {
+      vollflaeche.remove();
+      vollflaeche = null;
+    }
+  }
+  overlay.addEventListener('dragenter', function (e) {
+    e.preventDefault();
+    if (++ziehZaehler === 1) zeigeVollflaeche(true);
+  });
+  overlay.addEventListener('dragover', function (e) { e.preventDefault(); });
+  overlay.addEventListener('dragleave', function (e) {
+    e.preventDefault();
+    if (--ziehZaehler <= 0) { ziehZaehler = 0; zeigeVollflaeche(false); }
+  });
+  overlay.addEventListener('drop', function (e) {
+    e.preventDefault();
+    ziehZaehler = 0;
+    zeigeVollflaeche(false);
+    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) { zeigeSeite('datei'); dateiWaehlen(f); }
+  });
+
+  if (q('remove')) q('remove').addEventListener('click', entfernen);
+  overlay.querySelector('.kk-modal-close').addEventListener('click', close);
+  q('cancel').addEventListener('click', close);
+  q('send').addEventListener('click', senden);
+  overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+  document.addEventListener('keydown', escHandler);
+
+  overlay.querySelector('#simg-text').focus();
+}
+
+
+/* ============================================================
+   Finalisieren: Auswahl senden, PPTX herunterladen
+   ============================================================ */
+async function genFinalize() {
+  const slides = genManifestSlides();
+  if (!genJobId || !slides.length) return;
+
+  if (genIstImport()) {
+    // Hochgeladene Datei unverändert ausliefern
+    try {
+      const resp = await kkApi('/komkom-job-status?job_id=' + encodeURIComponent(genJobId));
+      const url = resp.urls && resp.urls.result;
+      if (!url) throw new Error('Keine Datei hinterlegt.');
+      const a = document.getElementById('dl-link');
+      a.href = url;
+      a.click();
+      genToast('Download startet.');
+    } catch (e) {
+      genToast('Download fehlgeschlagen: ' + e.message);
+    }
+    return;
+  }
+  // Keine stille Vorbelegung mehr: fehlt irgendwo eine Wahl, wird nicht
+  // heimlich A genommen — komkom-finalize verlangt ohnehin jede Position.
+  const selection = genSelectionListe();
+  if (selection.length !== slides.length) {
+    genToast('Bitte zuerst für jede Folie eine Fassung wählen.');
+    return;
+  }
+  const btn = document.getElementById('btn-finalize');
+  btn.disabled = true;
+  btn.textContent = 'Wird erstellt …';
+  try {
+    const resp = await kkApi('/komkom-finalize', {
+      method: 'POST',
+      body: JSON.stringify({ job_id: genJobId, selection: selection })
+    });
+    if (resp.download_url) {
+      const a = document.getElementById('dl-link');
+      a.href = resp.download_url;
+      a.click();
+      genToast('PowerPoint wurde erstellt – der Download startet.');
+    } else {
+      genToast('PowerPoint wurde erstellt. Der Download ist in der Übersicht verfügbar.');
+    }
+  } catch (e) {
+    genToast('PowerPoint konnte nicht erstellt werden: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Download';
+    genApplySelection();          // setzt den Sperrzustand der Insel neu
+  }
+}
+
+/* ============================================================
+   Allgemeine Anpassungen: neuen Folge-Job anstoßen
+   ============================================================ */
+async function genSubmitFeedback() {
+  const txtEl = document.getElementById('feedback-text');
+  const text = txtEl.value.trim();
+  if (!genJobId) return;
+  if (text.length < 10) {
+    genToast('Bitte die Anpassung etwas ausführlicher beschreiben (mindestens 10 Zeichen).');
+    return;
+  }
+  const btn = document.getElementById('btn-feedback');
+  btn.disabled = true;
+  btn.textContent = 'Wird gesendet …';
+  genLastRequest = { type: 'feedback', payload: { parent_job: genJobId, input_text: text } };
+  try {
+    const resp = await kkApi('/komkom-submit-feedback', {
+      method: 'POST',
+      body: JSON.stringify({ parent_job: genJobId, input_text: text })
+    });
+    genToast('Anpassung gesendet – eine überarbeitete Version wird erstellt.');
+    location.hash = '#job=' + resp.job_id;
+  } catch (e) {
+    genToast('Anpassung konnte nicht gesendet werden: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Anpassung senden';
+  }
+}
+
+/* Start: Ansicht aus dem aktuellen Hash ableiten */
+genRoute();
+</script>
+</body>
+</html>

@@ -16,8 +16,40 @@
   }
   sb.auth.getSession().then(({ data }) => {
     if (!data.session) location.replace('index.html');
+    else kkUebernehmeSitzungsnutzer(data.session);
+  });
+
+  // Auch bei Token-Erneuerung nachziehen — genau dann war der Name vorher weg.
+  sb.auth.onAuthStateChange((ereignis, session) => {
+    if (ereignis === 'SIGNED_OUT' || !session) {
+      try { sessionStorage.removeItem('kk_user'); } catch (e) { /* egal */ }
+      return;
+    }
+    kkUebernehmeSitzungsnutzer(session);
   });
 })();
+
+/** Anzeigenamen aus der Supabase-Sitzung ableiten und im Kopf nachtragen. */
+function kkUebernehmeSitzungsnutzer(session) {
+  const u = session && session.user;
+  if (!u) return;
+  const meta = u.user_metadata || {};
+  const name = meta.name || meta.full_name ||
+    // Ersatzweise aus der E-Mail: "vorname.nachname@…" → "Vorname Nachname"
+    (u.email || '').split('@')[0].split(/[._-]+/)
+      .filter(Boolean)
+      .map((t) => t.charAt(0).toUpperCase() + t.slice(1))
+      .join(' ');
+  if (!name) return;
+  try { sessionStorage.setItem('kk_user', name); } catch (e) { /* egal */ }
+
+  const el = document.querySelector('.kk-user-name');
+  const av = document.querySelector('.kk-user-initials');
+  if (el) el.textContent = name;
+  if (av) {
+    av.textContent = name.split(/\s+/).map((w) => w[0]).join('').toUpperCase().slice(0, 2);
+  }
+}
 
 async function kkLogin(ev) {
   ev.preventDefault();
@@ -111,7 +143,8 @@ const KK_ICONS = {
   bell: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>',
   trend: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>',
   gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
-  logout: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>'
+  logout: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>',
+  slides: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 21h8M12 18v3"/></svg>'
 };
 
 /* ---------- Navigation ---------- */
@@ -125,10 +158,11 @@ const KK_NAV = [
   { href: 'trainings.html', icon: 'cal', label: 'Trainings' },
   // "Steuerung" vorerst ausgeblendet (nicht gelöscht). Zum Wieder-Einblenden
   // einfach hidden:false setzen bzw. die Eigenschaft entfernen.
-  { sec: 'Steuerung', hidden: true },
+  { sec: 'Steuerung' },
   { href: 'forecast.html', icon: 'trend', label: 'Forecast & Ziele', hidden: true },
   { href: 'alerts.html', icon: 'bell', label: 'Alerts', hidden: true },
   { href: 'berichte.html', icon: 'report', label: 'Berichte & Export', hidden: true },
+  { href: 'generator.html', icon: 'slides', label: 'PPTX-Generator' },
   { href: 'einstellungen.html', icon: 'gear', label: 'Einstellungen', hidden: true }
 ];
 
@@ -167,7 +201,11 @@ function kkShell(opts) {
         KK_ICONS.logout + '<span class="logout-label">Abmelden</span></button>' +
     '</div>';
 
-  const user = sessionStorage.getItem('kk_user') || KK.meta.nutzer.name;
+  // Angemeldeten Namen NIE aus den Demo-Daten nehmen: Nach längerer Inaktivität
+  // konnte sessionStorage leer sein, und der Kopf zeigte plötzlich die
+  // Demo-Person „Gabi Geschäftsführung" statt des echten Kontos.
+  const user = sessionStorage.getItem('kk_user') ||
+    (typeof sb !== 'undefined' && sb ? '…' : KK.meta.nutzer.name);
   const initials = user.split(/\s+/).map((w) => w[0]).join('').toUpperCase().slice(0, 2);
 
   const editMod = KK_PAGE_MODULE[here];
@@ -190,29 +228,56 @@ function kkShell(opts) {
     '<div class="topbar-right">' +
       demoSwitch +
       editBtn +
-      '<div class="user-chip"><div class="avatar">' + initials + '</div>' + user + '</div>' +
+      '<div class="user-chip"><div class="avatar kk-user-initials">' + initials + '</div>' +
+        '<span class="kk-user-name">' + user + '</span></div>' +
     '</div>';
 
-  // Breadcrumb: aktuellen Pfad (Bereich + Seite) aus der Navigation ableiten
-  let sec = '';
+  // Breadcrumb: Haus-Icon (Link aufs Dashboard) / aktuelle Seite. Seiten mit
+  // Unteransichten können den Pfad per kkSetBreadcrumb() selbst setzen.
   let pageLabel = title;
   for (const item of KK_NAV) {
-    if (item.sec) { sec = item.sec; }
-    else if (item.href === here) { pageLabel = item.label; break; }
+    if (item.href === here) { pageLabel = item.label; break; }
   }
   const breadcrumb = document.createElement('nav');
   breadcrumb.className = 'breadcrumb';
+  breadcrumb.id = 'kk-breadcrumb';
   breadcrumb.setAttribute('aria-label', 'Pfad');
-  breadcrumb.innerHTML =
-    '<a href="dashboard.html" title="Startseite">' + KK_ICONS.home + '</a>' +
-    (sec ? '<span class="sep">/</span><span>' + sec + '</span>' : '') +
-    '<span class="sep">/</span><span class="crumb-current">' + pageLabel + '</span>';
+  breadcrumb.innerHTML = '<a href="dashboard.html" title="Startseite">' + KK_ICONS.home + '</a>';
 
   const main = document.querySelector('.main');
   document.body.insertBefore(sidebar, document.body.firstChild);
   main.insertBefore(topbar, main.firstChild);
   main.insertBefore(breadcrumb, main.firstChild);
+  kkSetBreadcrumb([{ label: pageLabel }]);
   document.title = title + ' · GF-Dashboard · Kompetenz Kompanie';
+}
+
+/* Breadcrumb nach dem Haus-Icon neu setzen.
+   trail = Array aus { label, href? }; die letzte Stufe wird ohne Link
+   als aktuelle Seite (crumb-current) dargestellt. */
+function kkSetBreadcrumb(trail) {
+  const bc = document.getElementById('kk-breadcrumb');
+  if (!bc) return;
+  while (bc.children.length > 1) bc.removeChild(bc.lastChild);
+  const steps = Array.isArray(trail) ? trail : [];
+  steps.forEach(function (step, i) {
+    const sep = document.createElement('span');
+    sep.className = 'sep';
+    sep.textContent = '/';
+    bc.appendChild(sep);
+    const last = i === steps.length - 1;
+    if (!last && step.href) {
+      const a = document.createElement('a');
+      a.href = step.href;
+      a.textContent = step.label;
+      bc.appendChild(a);
+    } else {
+      const s = document.createElement('span');
+      if (last) s.className = 'crumb-current';
+      s.textContent = step.label;
+      bc.appendChild(s);
+    }
+  });
 }
 
 /* ---------- Chart.js Defaults im KomKom-Branding ---------- */

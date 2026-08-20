@@ -1,3 +1,18 @@
 .DS_Store
 Thumbs.db
 node_modules/
+
+# Lokale Werkzeuge und Cloudflare-Zwischenstand
+.wrangler/
+*.command
+
+# Interne Unterlagen — die Pages-Seite ist oeffentlich, hier gehoert
+# nichts hin, was nur intern gedacht ist.
+Umsetzungsplan-*.md
+SKILL-*.md
+KomKom_Master_layout.pptx
+Logo-KomKom_lang.png
+
+# Quellmaterial und Zwischenstaende, nicht Teil der Website
+Keynote/
+supabase/
