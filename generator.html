@@ -423,7 +423,7 @@
 .mini-bar > i { display: block; height: 100%; background: var(--kk-orange); border-radius: 999px; }
 .mini-bar-zahl { margin-left: 6px; font-size: 0.78rem; color: var(--kk-gray); font-variant-numeric: tabular-nums; }
 
-.gen-loeschen { border-color: rgba(204, 75, 59, 0.35); }
+.gen-loeschen { margin-top: 30px; border-color: rgba(204, 75, 59, 0.35); }
 .gen-loeschen h2 { color: var(--kk-red); }
 .gen-loeschen #btn-deck-loeschen { border-color: var(--kk-red); color: var(--kk-red); }
 .gen-loeschen #btn-deck-loeschen:hover { background: var(--kk-red); color: var(--kk-white); }
@@ -699,20 +699,20 @@
       <div id="slides"></div>
       <div class="end-note" id="end-note"></div>
 
+      <div class="card gen-feedback">
+        <div class="card-header"><h2>Anpassungen zur Präsentation</h2></div>
+        <p>Das Bearbeiten kostet neue Credits. Eine Anpassung im Ganzen nur erstellen, wenn die gesamte Präsentation Änderungen bedarf – nicht für einzelne Folien. Dafür das Bearbeiten-Symbol an der jeweiligen Folie nutzen.</p>
+        <textarea id="feedback-text"></textarea>
+        <div class="gen-foot">
+          <button class="btn btn-outline" id="btn-feedback" onclick="genSubmitFeedback()">Anpassung senden</button>
+        </div>
+      </div>
+
       <div class="card gen-loeschen">
         <div class="card-header"><h2>Präsentation löschen</h2></div>
         <p>Entfernt diese Präsentation mit allen Überarbeitungen, Vorschaubildern und Dateien. Das lässt sich nicht rückgängig machen.</p>
         <div class="gen-foot">
           <button class="btn btn-sm btn-outline" id="btn-deck-loeschen" onclick="genLoeschenDialog(genJobId)">Präsentation löschen</button>
-        </div>
-      </div>
-
-      <div class="card gen-feedback">
-        <div class="card-header"><h2>Anpassungen zur Präsentation</h2></div>
-        <p>Beschreibe, was insgesamt geändert werden soll – daraus wird eine überarbeitete Version mit neuen Vorschau-Folien erstellt.</p>
-        <textarea id="feedback-text" placeholder="z. B. „Die Zitate größer setzen und insgesamt weniger Text pro Folie.&#8220;"></textarea>
-        <div class="gen-foot">
-          <button class="btn btn-outline" id="btn-feedback" onclick="genSubmitFeedback()">Anpassung senden</button>
         </div>
       </div>
     </div>
