@@ -3331,7 +3331,8 @@ function genOpenSlideImage(position, v) {
           'als Bild dieser Folie. Für diese Folie und Variante KEIN Bild erzeugen. ' +
           'Das Bild MUSS auf der Folie sichtbar werden: Trägt der Archetyp ein Bildfeld oder einen Hintergrund ' +
           '(titel, sektion, inhaltBild, zitat, aktivierung, schluss), trage den Pfad als bild.' + v + ' ein. ' +
-          'Zeigt der Archetyp sonst kein Bild (diagramm, raster, zweiSpalten, aussage), setze zusätzlich ' +
+          'Auf einer diagramm-Folie ebenfalls nur bild.' + v + ' eintragen – die Engine setzt das Bild als Bildfeld neben das Diagramm, beides bleibt. ' +
+          'Zeigt der Archetyp sonst kein Bild (raster, zweiSpalten, aussage), setze zusätzlich ' +
           'bild.rolle auf "hintergrund" – die Engine legt das Bild dann randlos hinter den Inhalt, nur in dieser Variante. ' +
           'Den Archetyp NICHT wechseln, nicht rückfragen.' +
           (text ? '\nHinweis zum Einsatz des Bildes: ' + text : '')
