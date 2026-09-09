@@ -3071,7 +3071,7 @@ function genOpenSlideImage(position, v) {
           '<div class="gen-field" style="margin-top:0;margin-bottom:14px">' +
             '<label for="simg-hinweis-med">Hinweis zum Einsatz (optional)</label>' +
             '<textarea id="simg-hinweis-med" style="min-height:64px" placeholder="z. B. als Hintergrund hinter das Diagramm legen, Motiv links lassen"></textarea>' +
-            '<div class="gen-note">Geht als Anweisung an den Agenten mit, wie das gewählte Bild auf der Folie eingesetzt wird.</div>' +
+            '<div class="gen-note">Optional. Geht als Anweisung mit, wie das gewählte Bild auf der Folie eingesetzt wird.</div>' +
           '</div>' +
           '<div class="simg-drei">' +
             '<div class="simg-spalte">' +
@@ -3089,6 +3089,11 @@ function genOpenSlideImage(position, v) {
           '</div>' +
         '</div>' +
         '<div data-act="seite-datei" hidden>' +
+          '<div class="gen-field" style="margin-top:0;margin-bottom:14px">' +
+            '<label for="simg-hinweis-datei">Hinweis zum Einsatz (optional)</label>' +
+            '<textarea id="simg-hinweis-datei" style="min-height:64px" placeholder="z. B. als Bildfeld rechts neben dem Text, Person nicht anschneiden"></textarea>' +
+            '<div class="gen-note">Optional. Geht als Anweisung mit, wie das Bild auf der Folie eingesetzt wird.</div>' +
+          '</div>' +
           '<div class="ref-drop" data-act="pick">' +
             '<p><strong>Bild hierher ziehen</strong> oder klicken zum Auswählen<br>' +
             'PNG, JPEG oder WebP &middot; 16:9 empfohlen<br>' +
@@ -3098,11 +3103,6 @@ function genOpenSlideImage(position, v) {
           '<div class="ref-preview" data-act="preview" hidden>' +
             '<img data-act="preview-img" alt="Vorschau des gewählten Bildes">' +
             '<div class="meta" data-act="preview-meta"></div>' +
-          '</div>' +
-          '<div class="gen-field">' +
-            '<label for="simg-hinweis-datei">Hinweis zum Einsatz (optional)</label>' +
-            '<textarea id="simg-hinweis-datei" style="min-height:64px" placeholder="z. B. als Bildfeld rechts neben dem Text, Person nicht anschneiden"></textarea>' +
-            '<div class="gen-note">Geht als Anweisung an den Agenten mit, wie das Bild auf der Folie eingesetzt wird.</div>' +
           '</div>' +
         '</div>' +
         '<div class="gen-error" data-act="error" hidden></div>' +
@@ -3320,7 +3320,13 @@ function genOpenSlideImage(position, v) {
       btn.textContent = 'Wird gesendet …';
       const kopf = 'Folie ' + s.position + ' („' + (s.title || 'ohne Titel') + '“), Variante ' + vName + ' (' + genBildwelt(v) + '): ';
       const hatBild = !!(gewaehlt || ausBibliothek || ausMediathek);
-      const inputText = (hatBild
+      // Erste Zeile maschinenlesbar: der Worker bettet ein gewähltes Bild ohne
+      // Agenten ein (Deck-Plan ändern, Engine, Vorschau) — Sekunden statt Minuten.
+      // Der Text darunter bleibt als Verlauf für spätere Anpassungsrunden.
+      const marker = hatBild
+        ? '#bild-einbetten ' + JSON.stringify({ position: position, variante: v, hinweis: text || undefined }) + '\n'
+        : '';
+      const inputText = marker + (hatBild
         ? kopf + 'Verwende das hinterlegte Bild aus images/uploads/ (siehe images/uploads/CONTEXT.json) ' +
           'als Bild dieser Folie. Für diese Folie und Variante KEIN Bild erzeugen. ' +
           'Das Bild MUSS auf der Folie sichtbar werden: Trägt der Archetyp ein Bildfeld oder einen Hintergrund ' +
