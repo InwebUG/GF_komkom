@@ -3068,6 +3068,11 @@ function genOpenSlideImage(position, v) {
           '</div>' +
         '</div>' +
         '<div data-act="seite-med" hidden>' +
+          '<div class="gen-field" style="margin-top:0;margin-bottom:14px">' +
+            '<label for="simg-hinweis-med">Hinweis zum Einsatz (optional)</label>' +
+            '<textarea id="simg-hinweis-med" style="min-height:64px" placeholder="z. B. als Hintergrund hinter das Diagramm legen, Motiv links lassen"></textarea>' +
+            '<div class="gen-note">Geht als Anweisung an den Agenten mit, wie das gewählte Bild auf der Folie eingesetzt wird.</div>' +
+          '</div>' +
           '<div class="simg-drei">' +
             '<div class="simg-spalte">' +
               '<h4>Eigene Bilder</h4>' +
@@ -3093,6 +3098,11 @@ function genOpenSlideImage(position, v) {
           '<div class="ref-preview" data-act="preview" hidden>' +
             '<img data-act="preview-img" alt="Vorschau des gewählten Bildes">' +
             '<div class="meta" data-act="preview-meta"></div>' +
+          '</div>' +
+          '<div class="gen-field">' +
+            '<label for="simg-hinweis-datei">Hinweis zum Einsatz (optional)</label>' +
+            '<textarea id="simg-hinweis-datei" style="min-height:64px" placeholder="z. B. als Bildfeld rechts neben dem Text, Person nicht anschneiden"></textarea>' +
+            '<div class="gen-note">Geht als Anweisung an den Agenten mit, wie das Bild auf der Folie eingesetzt wird.</div>' +
           '</div>' +
         '</div>' +
         '<div class="gen-error" data-act="error" hidden></div>' +
@@ -3260,7 +3270,12 @@ function genOpenSlideImage(position, v) {
   }
 
   async function senden() {
-    const text = overlay.querySelector('#simg-text').value.trim();
+    // Jede Option hat ihr eigenes Textfeld: Motivbeschreibung beim Generieren,
+    // Einsatzhinweis bei Bibliothek/Mediathek und bei der Datei.
+    const aktiv = !q('seite-med').hidden ? 'med' : (!q('seite-datei').hidden ? 'datei' : 'gen');
+    const text = (aktiv === 'gen'
+      ? overlay.querySelector('#simg-text').value
+      : overlay.querySelector('#simg-hinweis-' + aktiv).value).trim();
     if (!gewaehlt && !ausBibliothek && !ausMediathek && !text) {
       fehler('Bitte ein Bild wählen, hochladen oder das gewünschte Motiv beschreiben.');
       return;
@@ -3307,7 +3322,12 @@ function genOpenSlideImage(position, v) {
       const hatBild = !!(gewaehlt || ausBibliothek || ausMediathek);
       const inputText = (hatBild
         ? kopf + 'Verwende das hinterlegte Bild aus images/uploads/ (siehe images/uploads/CONTEXT.json) ' +
-          'als Bild dieser Folie. Für diese Folie und Variante KEIN Bild erzeugen.' +
+          'als Bild dieser Folie. Für diese Folie und Variante KEIN Bild erzeugen. ' +
+          'Das Bild MUSS auf der Folie sichtbar werden: Trägt der Archetyp ein Bildfeld oder einen Hintergrund ' +
+          '(titel, sektion, inhaltBild, zitat, aktivierung, schluss), trage den Pfad als bild.' + v + ' ein. ' +
+          'Zeigt der Archetyp sonst kein Bild (diagramm, raster, zweiSpalten, aussage), setze zusätzlich ' +
+          'bild.rolle auf "hintergrund" – die Engine legt das Bild dann randlos hinter den Inhalt, nur in dieser Variante. ' +
+          'Den Archetyp NICHT wechseln, nicht rückfragen.' +
           (text ? '\nHinweis zum Einsatz des Bildes: ' + text : '')
         : kopf + 'Erzeuge das Bild dieser Folie neu. Motiv: ' + text +
           '\nBildstil, Komposition und Referenzauswahl nach STYLEGUIDE.md.'
