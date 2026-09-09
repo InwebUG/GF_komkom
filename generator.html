@@ -2907,7 +2907,7 @@ async function genDeleteSlide(position) {
   if (!window.confirm(
     'Folie ' + position + ' („' + titel + '“) mit beiden Fassungen (A · Menschen, B · Gegenstände) löschen?\n\n' +
     'Die Präsentation hat danach ' + danach + ' statt ' + slides.length + ' Folien; ' +
-    'die nachfolgenden rücken auf. Eine überarbeitete Version wird erstellt.'
+    'die nachfolgenden rücken auf. Das passiert direkt, ohne Anpassungsrunde durch den Agenten.'
   )) return;
 
   try {
@@ -2925,7 +2925,11 @@ async function genDeleteSlide(position) {
     // 2) Dann die Anpassungsrunde. Die Folie wird über Position UND Titel
     //    benannt — nach dem Löschen stimmen die Positionen nicht mehr, der
     //    Titel bleibt die eindeutige Kennung.
+    // Erste Zeile maschinenlesbar: der Worker streicht die Folie selbst aus dem
+    // Deck-Plan und rendert (Sekunden, kein Agent). Der Text darunter bleibt
+    // Rückfall und Verlauf für spätere Runden.
     const inputText =
+      '#folie-entfernen ' + JSON.stringify({ position: position, titel: titel }) + '\n' +
       'Lösche die Folie an Position ' + position + ' („' + titel + '“) vollständig aus deckplan.json — ' +
       'mit beiden Varianten.\n' +
       'Die übrigen ' + danach + ' Folien behalten Inhalt und Reihenfolge unverändert; ' +
@@ -2939,7 +2943,7 @@ async function genDeleteSlide(position) {
       method: 'POST',
       body: JSON.stringify(genLastRequest.payload)
     });
-    genToast('Folie wird entfernt – eine überarbeitete Version wird erstellt.');
+    genToast('Folie wird entfernt – die Vorschau wird neu gerendert.');
     location.hash = '#job=' + fb.job_id;
   } catch (e) {
     genToast('Löschen fehlgeschlagen: ' + e.message);
