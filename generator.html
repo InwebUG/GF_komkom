@@ -332,6 +332,14 @@
 }
 .ref-preview .meta { font-size: 0.88rem; color: var(--kk-gray); line-height: 1.7; }
 .ref-preview .meta b { color: var(--kk-dark); }
+.eigene-liste { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.eigene-zeile { display: grid; grid-template-columns: 150px 1fr auto; gap: 14px; align-items: center; border: 1px solid var(--kk-border); border-radius: 10px; padding: 8px 10px; background: var(--kk-white); }
+.eigene-zeile img { width: 150px; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 6px; background: var(--kk-offwhite); display: block; }
+.eigene-zeile .meta { font-size: 0.82rem; color: var(--kk-gray); margin-top: 4px; }
+.eigene-zeile input { width: 100%; }
+.eigene-zeile.fertig { opacity: 0.55; }
+.eigene-zeile.fehler { border-color: var(--kk-orange); }
+@media (max-width: 640px) { .eigene-zeile { grid-template-columns: 1fr; } .eigene-zeile img { width: 100%; } }
 .ref-check { display: flex; align-items: flex-start; gap: 10px; margin-top: 18px; font-size: 0.92rem; color: var(--kk-text); }
 .ref-check input { margin-top: 3px; flex-shrink: 0; }
 
@@ -582,27 +590,20 @@
 
     <div class="card" id="eigene-form-card" hidden>
       <div class="card-header"><h2>Bild in Bibliothek hinzufügen</h2></div>
-      <p class="gen-help">Eigene Bilder liegen in der Bibliothek und lassen sich beim Bearbeiten einer Präsentation je Folie auswählen. Sie werden <b>nicht</b> als Stilreferenz an die Bildgenerierung gegeben – dafür ist „Neues Referenzbild hinzufügen" da. Verkleinert auf 1920&nbsp;px (längste Kante).</p>
+      <p class="gen-help">Eigene Bilder liegen in der Bibliothek und lassen sich beim Bearbeiten einer Präsentation je Folie auswählen. Sie werden <b>nicht</b> als Stilreferenz an die Bildgenerierung gegeben – dafür ist „Neues Referenzbild hinzufügen" da. Mehrere Bilder auf einmal möglich; jedes wird auf 1920&nbsp;px (längste Kante) verkleinert.</p>
       <div class="gen-field">
-        <label>Bild</label>
+        <label>Bilder</label>
         <div class="ref-drop" id="eigene-drop" onclick="document.getElementById('eigene-file').click()">
-          <p><strong>Bild hierher ziehen</strong> oder klicken zum Auswählen<br>PNG, JPEG oder WebP &middot; 16:9 empfohlen</p>
+          <p><strong>Bilder hierher ziehen</strong> oder klicken zum Auswählen<br>PNG, JPEG oder WebP &middot; mehrere gleichzeitig &middot; 16:9 empfohlen</p>
         </div>
-        <input type="file" id="eigene-file" accept="image/png,image/jpeg,image/webp" hidden onchange="eigenePickFile(this.files[0])">
-        <div class="ref-preview" id="eigene-preview" hidden>
-          <img id="eigene-preview-img" alt="Vorschau des gewählten Bildes">
-          <div class="meta" id="eigene-preview-meta"></div>
-        </div>
-      </div>
-      <div class="gen-field">
-        <label for="eigene-titel">Titel</label>
-        <input type="text" id="eigene-titel" placeholder="z. B. Thomas Reiche Keynote 2026" autocomplete="off">
-        <div class="gen-note">Wird zum Dateinamen verkürzt und in der Auswahl angezeigt.</div>
+        <input type="file" id="eigene-file" accept="image/png,image/jpeg,image/webp" multiple hidden onchange="eigenePickFiles(this.files)">
+        <div id="eigene-liste" class="eigene-liste"></div>
+        <div class="gen-note" id="eigene-liste-note" hidden>Titel je Bild anpassen – er wird zum Dateinamen verkürzt und in der Auswahl angezeigt.</div>
       </div>
       <div class="gen-error" id="eigene-error" hidden></div>
       <div class="gen-foot">
         <button class="btn btn-outline" onclick="eigeneToggleForm(false)">Abbrechen</button>
-        <button class="btn" id="btn-eigene-save" onclick="eigeneSubmit()">Bild speichern</button>
+        <button class="btn" id="btn-eigene-save" onclick="eigeneSubmit()">Bilder speichern</button>
       </div>
     </div>
 
@@ -1913,7 +1914,7 @@ function genRefCard(r) {
    Ablage komkom-pptx/bibliothek/ über komkom-slide-image (?eigene=1,
    aktion eigene-anlegen / eigene-loeschen). Im Bild-Dialog einer Folie
    werden sie wie die Mediathek per Pfad übernommen (aktion mediathek). */
-let eigeneBild = null;
+let eigeneBilder = [];   // [{prep, titel, status}] – vorbereitete Dateien, noch nicht hochgeladen
 let eigeneCache = [];
 
 function eigeneToggleForm(auf) {
@@ -1925,38 +1926,67 @@ function eigeneToggleForm(auf) {
   if (zeigen) {
     refToggleForm(false);
     card.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    document.getElementById('eigene-titel').focus();
   } else {
-    eigeneBild = null;
-    document.getElementById('eigene-titel').value = '';
+    eigeneBilder = [];
     document.getElementById('eigene-file').value = '';
-    document.getElementById('eigene-preview').hidden = true;
     document.getElementById('eigene-error').hidden = true;
+    eigeneRenderListe();
   }
 }
 
-async function eigenePickFile(file) {
-  if (!file) return;
+/* Mehrere Dateien annehmen: jede verkleinern, Titel aus dem Dateinamen vorschlagen */
+async function eigenePickFiles(files) {
+  const liste = Array.prototype.slice.call(files || []);
+  if (!liste.length) return;
   const errEl = document.getElementById('eigene-error');
   errEl.hidden = true;
-  try {
-    eigeneBild = await genPrepareImage(file);
-  } catch (e) {
-    errEl.textContent = e.message;
+  const abgelehnt = [];
+  for (const file of liste) {
+    try {
+      const prep = await genPrepareImage(file);
+      const basis = file.name.replace(/\.[^.]+$/, '');
+      const wirktWieId = /[0-9a-f]{8,}/i.test(basis) || /^\d+$/.test(basis);
+      eigeneBilder.push({ prep: prep, titel: wirktWieId ? '' : basis.replace(/[-_]+/g, ' ').trim(), status: '' });
+    } catch (e) {
+      abgelehnt.push(file.name + ' (' + e.message + ')');
+    }
+  }
+  document.getElementById('eigene-file').value = '';
+  if (abgelehnt.length) {
+    errEl.textContent = 'Nicht übernommen: ' + abgelehnt.join(', ');
     errEl.hidden = false;
-    return;
   }
-  document.getElementById('eigene-preview-img').src = eigeneBild.dataUrl;
-  document.getElementById('eigene-preview').hidden = false;
-  document.getElementById('eigene-preview-meta').innerHTML =
-    '<b>' + esc(eigeneBild.name) + '</b><br>' +
-    'Original ' + eigeneBild.ow + '&times;' + eigeneBild.oh + ' px<br>' +
-    'Gespeichert als ' + eigeneBild.w + '&times;' + eigeneBild.h + ' px JPEG, ' + Math.round(eigeneBild.bytes / 1024) + ' KB';
-  const basis = file.name.replace(/\.[^.]+$/, '');
-  const wirktWieId = /[0-9a-f]{8,}/i.test(basis) || /^\d+$/.test(basis);
-  if (!document.getElementById('eigene-titel').value.trim() && !wirktWieId) {
-    document.getElementById('eigene-titel').value = basis.replace(/[-_]+/g, ' ').trim();
-  }
+  eigeneRenderListe();
+}
+
+function eigeneRenderListe() {
+  const ziel = document.getElementById('eigene-liste');
+  const note = document.getElementById('eigene-liste-note');
+  const btn = document.getElementById('btn-eigene-save');
+  note.hidden = eigeneBilder.length === 0;
+  const offen = eigeneBilder.filter(function (b) { return b.status !== 'fertig'; }).length;
+  btn.textContent = offen > 1 ? offen + ' Bilder speichern' : 'Bild speichern';
+  ziel.innerHTML = eigeneBilder.map(function (b, i) {
+    const p = b.prep;
+    return '<div class="eigene-zeile' + (b.status === 'fertig' ? ' fertig' : '') + (b.status === 'fehler' ? ' fehler' : '') + '" data-i="' + i + '">' +
+      '<img src="' + esc(p.dataUrl) + '" alt="">' +
+      '<div>' +
+        '<input type="text" value="' + esc(b.titel) + '" placeholder="Titel" autocomplete="off"' + (b.status === 'fertig' ? ' disabled' : '') + '>' +
+        '<div class="meta">' + esc(p.name) + ' &middot; ' + p.ow + '&times;' + p.oh + ' px &rarr; ' + p.w + '&times;' + p.h + ' px, ' + Math.round(p.bytes / 1024) + ' KB' +
+          (b.status === 'fertig' ? ' &middot; <b>gespeichert</b>' : '') +
+          (b.status === 'fehler' ? ' &middot; <b>' + esc(b.meldung || 'fehlgeschlagen') + '</b>' : '') +
+        '</div>' +
+      '</div>' +
+      (b.status === 'fertig' ? '<span></span>' : '<button class="btn btn-sm btn-outline" data-act="weg">Entfernen</button>') +
+    '</div>';
+  }).join('');
+  ziel.querySelectorAll('.eigene-zeile').forEach(function (zeile) {
+    const i = Number(zeile.getAttribute('data-i'));
+    const input = zeile.querySelector('input');
+    input.addEventListener('input', function () { eigeneBilder[i].titel = input.value; });
+    const weg = zeile.querySelector('[data-act="weg"]');
+    if (weg) weg.addEventListener('click', function () { eigeneBilder.splice(i, 1); eigeneRenderListe(); });
+  });
 }
 
 (function eigeneInitDrop() {
@@ -1969,35 +1999,54 @@ async function eigenePickFile(file) {
     drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('over'); });
   });
   drop.addEventListener('drop', function (e) {
-    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-    if (f) eigenePickFile(f);
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) eigenePickFiles(e.dataTransfer.files);
   });
 })();
 
+/* Nacheinander hochladen; was scheitert, bleibt in der Liste stehen und
+   wird markiert – der Rest ist gespeichert. */
 async function eigeneSubmit() {
   const errEl = document.getElementById('eigene-error');
-  const titel = document.getElementById('eigene-titel').value.trim();
   errEl.hidden = true;
-  if (!eigeneBild) { errEl.textContent = 'Bitte zuerst ein Bild wählen.'; errEl.hidden = false; return; }
-  if (!titel) { errEl.textContent = 'Bitte einen Titel eingeben.'; errEl.hidden = false; return; }
+  const offen = eigeneBilder.filter(function (b) { return b.status !== 'fertig'; });
+  if (!offen.length) { errEl.textContent = 'Bitte zuerst Bilder wählen.'; errEl.hidden = false; return; }
+  const ohneTitel = offen.filter(function (b) { return !b.titel.trim(); });
+  if (ohneTitel.length) {
+    errEl.textContent = ohneTitel.length + ' Bild' + (ohneTitel.length === 1 ? ' hat' : 'er haben') + ' noch keinen Titel.';
+    errEl.hidden = false;
+    return;
+  }
   const btn = document.getElementById('btn-eigene-save');
   btn.disabled = true;
-  btn.textContent = 'Wird gespeichert …';
-  try {
-    await kkApi('/komkom-slide-image', {
-      method: 'POST',
-      body: JSON.stringify({ aktion: 'eigene-anlegen', titel: titel, mime: eigeneBild.mime, bild: eigeneBild.dataUrl })
-    });
-    genToast('Bild in der Bibliothek gespeichert.');
-    eigeneToggleForm(false);
-    eigeneLoadLibrary();
-  } catch (e) {
-    errEl.textContent = 'Speichern fehlgeschlagen: ' + e.message;
-    errEl.hidden = false;
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Bild speichern';
+  let ok = 0, fehler = 0;
+  for (let n = 0; n < offen.length; n++) {
+    const b = offen[n];
+    btn.textContent = 'Wird gespeichert … ' + (n + 1) + ' / ' + offen.length;
+    try {
+      await kkApi('/komkom-slide-image', {
+        method: 'POST',
+        body: JSON.stringify({ aktion: 'eigene-anlegen', titel: b.titel.trim(), mime: b.prep.mime, bild: b.prep.dataUrl })
+      });
+      b.status = 'fertig';
+      ok++;
+    } catch (e) {
+      b.status = 'fehler';
+      b.meldung = e.message;
+      fehler++;
+    }
+    eigeneRenderListe();
   }
+  btn.disabled = false;
+  eigeneRenderListe();
+  if (fehler) {
+    errEl.textContent = fehler + ' von ' + offen.length + ' Bildern konnte' + (fehler === 1 ? '' : 'n') + ' nicht gespeichert werden – Meldung steht an der Zeile. Nochmals „speichern" versucht es nur für diese.';
+    errEl.hidden = false;
+    eigeneLoadLibrary();
+    return;
+  }
+  genToast(ok === 1 ? 'Bild in der Bibliothek gespeichert.' : ok + ' Bilder in der Bibliothek gespeichert.');
+  eigeneToggleForm(false);
+  eigeneLoadLibrary();
 }
 
 async function eigeneLoadLibrary() {
