@@ -778,8 +778,9 @@
         <div class="review-summary">
           <span class="pill"><b id="cnt-a">0</b>&times; A &middot; Menschen</span>
           <span class="pill"><b id="cnt-b">0</b>&times; B &middot; Gegenstände</span>
+          <button class="btn btn-sm btn-outline" onclick="genPickAll('a')" title="Für jede Folie die Fassung A wählen">Alle A</button>
+          <button class="btn btn-sm btn-outline" onclick="genPickAll('b')" title="Für jede Folie die Fassung B wählen">Alle B</button>
           <span class="scrollpos" id="scroll-pos"></span>
-          <div class="gen-note">Folien ohne Bild sind in A und B identisch – dort ist jede Wahl richtig.</div>
         </div>
       </div>
       <div id="slides"></div>
@@ -2335,7 +2336,7 @@ function genRenderReview() {
   });
   document.getElementById('end-note').textContent =
     slides.length
-      ? ('Ende der Vorschau · ' + slides.length + ' Folien · Folien ohne Bild sind in A und B identisch – dort ist jede Wahl richtig.')
+      ? ('Ende der Vorschau · ' + slides.length + ' Folien')
       : 'Keine Folien im Manifest gefunden.';
   document.getElementById('feedback-text').value = '';
 
@@ -2369,8 +2370,8 @@ function genVariantCard(s, v) {
           'onclick="genOpenSlideImage(' + Number(s.position) + ',\'' + v + '\')">' +
           '<svg viewBox="0 0 24 24" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.6"/><path d="M21 15.5L16 10.5 5 21"/></svg>' +
         '</button>' +
-        '<button class="icon-btn" title="Diese Fassung verwerfen – die andere gilt dann" onclick="genPick(' + Number(s.position) + ',\'' + (v === 'a' ? 'b' : 'a') + '\')">' +
-          '<svg viewBox="0 0 24 24" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>' +
+        '<button class="icon-btn" title="Diese Folie als PowerPoint herunterladen" onclick="genDownloadSlide(' + Number(s.position) + ',\'' + v + '\', this)">' +
+          '<svg viewBox="0 0 24 24" stroke-width="2"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 19h16"/></svg>' +
         '</button>' +
       '</div>' +
     '</div>' +
@@ -2382,6 +2383,39 @@ function genVariantCard(s, v) {
       '<button class="select-btn" onclick="genPick(' + Number(s.position) + ',\'' + v + '\')"><span>Diese Fassung wählen</span></button>' +
     '</div>' +
   '</div>';
+}
+
+/* Alle Folien auf einmal auf A oder B setzen — abwählen bleibt je Folie möglich */
+function genPickAll(v) {
+  genManifestSlides().forEach(function (s) { genSel[s.position] = v; });
+  genApplySelection();
+  genSpeichereSelection();
+  genToast(v === 'a' ? 'Alle Folien auf A · Menschen gesetzt.' : 'Alle Folien auf B · Gegenstände gesetzt.');
+}
+
+/* Eine einzelne Folie (eine Fassung) als eigene PowerPoint-Datei laden.
+   komkom-finalize schneidet sie serverseitig aus combined.pptx heraus. */
+async function genDownloadSlide(position, v, btn) {
+  if (!genJobId) return;
+  if (btn) btn.disabled = true;
+  try {
+    const resp = await kkApi('/komkom-finalize', {
+      method: 'POST',
+      body: JSON.stringify({ job_id: genJobId, einzel: { position: position, pick: v } })
+    });
+    if (!resp.download_url) throw new Error('keine Download-Adresse erhalten');
+    const a = document.createElement('a');
+    a.href = resp.download_url;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    genToast('Folie ' + position + ' ' + genFassungName(v) + ' wird heruntergeladen.');
+  } catch (e) {
+    genToast('Download fehlgeschlagen: ' + e.message);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 function genPick(position, v) {
