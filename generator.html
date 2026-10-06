@@ -159,8 +159,6 @@
   white-space: nowrap;
 }
 .slide-title { font-size: 1.1rem; font-weight: 500; color: var(--kk-dark); }
-.chosen-hint { margin-left: auto; font-size: 0.85rem; color: var(--kk-text); }
-.chosen-hint b { color: var(--kk-orange-dark); }
 
 .variant-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 .variant {
@@ -460,6 +458,25 @@
 .variant.verworfen { opacity: 0.5; }
 .variant.verworfen:hover { opacity: 1; }
 .variant.verworfen .thumb img { filter: grayscale(0.55); }
+
+/* Papierkorb im Folienkopf: beide Fassungen sehen aus wie gewählt, solange
+   der Zeiger darauf steht — das Löschen nimmt immer beide mit. */
+.slide-block.loesch-vorschau .variant {
+  border-color: var(--kk-orange);
+  box-shadow: 0 6px 24px rgba(228, 122, 61, 0.16);
+}
+.slide-block.loesch-vorschau .variant .variant-name .dot { background: var(--kk-orange); }
+.slide-block.loesch-vorschau .variant.verworfen { opacity: 1; }
+.slide-block.loesch-vorschau .variant.verworfen .thumb img { filter: none; }
+.slide-block.loesch-vorschau .slide-head .icon-btn[title*="löschen"] {
+  border-color: var(--kk-orange); color: var(--kk-orange-dark);
+}
+
+/* Während die Vorschau still neu gerendert wird: Hinweis in der Leiste,
+   Folienknöpfe stumm — sie bezögen sich sonst auf veraltete Positionen. */
+.pill-render { background: var(--kk-peach); color: var(--kk-orange-dark); font-weight: 700; }
+#slides.neu-rendern .icon-actions,
+#slides.neu-rendern .select-btn { pointer-events: none; opacity: 0.45; }
 
 @media (max-width: 1080px) { .variant-grid { grid-template-columns: 1fr; } }
 @media (max-width: 720px) { .ref-grid2 { grid-template-columns: 1fr; } }
@@ -776,8 +793,7 @@
           <div class="review-title" id="review-title"></div>
         </div>
         <div class="review-summary">
-          <span class="pill"><b id="cnt-a">0</b>&times; A &middot; Menschen</span>
-          <span class="pill"><b id="cnt-b">0</b>&times; B &middot; Gegenstände</span>
+          <span class="pill pill-render" id="render-hinweis" hidden></span>
           <button class="btn btn-sm btn-outline" onclick="genPickAll('a')" title="Für jede Folie die Fassung A wählen">Alle A</button>
           <button class="btn btn-sm btn-outline" onclick="genPickAll('b')" title="Für jede Folie die Fassung B wählen">Alle B</button>
           <span class="scrollpos" id="scroll-pos"></span>
@@ -2194,6 +2210,24 @@ function genStartWatching(jobId) {
   genFetchStatus();
 }
 
+/* Wie genStartWatching, nur ohne den Loader: die bestehende Vorschau bleibt
+   stehen, bis der neue Stand da ist. Für Vorgänge, die sofort bestätigt
+   sind und im Hintergrund nur noch neu gerendert werden. */
+function genStartWatchingStill(jobId) {
+  genStopWatching();
+  genJobId = jobId;
+  genJob = null;
+  genPreviews = {};
+  genSel = {};
+  genChannel = sb.channel('kk-pptx-job-' + jobId)
+    .on('postgres_changes',
+      { event: 'UPDATE', schema: 'customer_content', table: 'komkom_pptx_jobs', filter: 'id=eq.' + jobId },
+      function () { genFetchStatus(); })
+    .subscribe();
+  genPollTimer = setInterval(genFetchStatus, 3000);
+  genFetchStatus();
+}
+
 function genStopWatching() {
   if (genPollTimer) { clearInterval(genPollTimer); genPollTimer = null; }
   if (genChannel) {
@@ -2291,6 +2325,11 @@ function genManifestSlides() {
 }
 
 function genRenderReview() {
+  // Ein stiller Vorgang (z. B. gelöschte Folie) ist mit diesem Rendern vorbei.
+  genFolieLoeschtGerade = false;
+  const rh = document.getElementById('render-hinweis');
+  if (rh) { rh.textContent = ''; rh.hidden = true; }
+  document.getElementById('slides').classList.remove('neu-rendern');
   // Uploads gehören der ganzen Kette; einmal laden, dann die Icons markieren.
   genLoadUploads();
   const slides = genManifestSlides();
@@ -2343,9 +2382,15 @@ function genRenderReview() {
       '<div class="slide-head">' +
         '<span class="folie-no">FOLIE ' + esc(s.position) + '</span>' +
         '<span class="slide-title">' + esc(s.title || '') + '</span>' +
-        '<span class="chosen-hint">Ausgewählt: <b id="chosen-' + esc(s.position) + '">noch offen</b></span>' +
         '<div class="icon-actions" style="margin-left:auto">' +
-          '<button class="icon-btn" title="Diese Folie ganz löschen" onclick="genDeleteSlide(' + Number(s.position) + ')">' +
+          // Hovern über den Papierkorb hebt BEIDE Fassungen hervor, damit
+          // sichtbar ist: hier geht die ganze Folie, nicht eine Fassung.
+          '<button class="icon-btn" title="Diese Folie ganz löschen"' +
+            ' onmouseenter="genLoeschVorschau(' + Number(s.position) + ', true)"' +
+            ' onmouseleave="genLoeschVorschau(' + Number(s.position) + ', false)"' +
+            ' onfocus="genLoeschVorschau(' + Number(s.position) + ', true)"' +
+            ' onblur="genLoeschVorschau(' + Number(s.position) + ', false)"' +
+            ' onclick="genDeleteSlide(' + Number(s.position) + ')">' +
             '<svg viewBox="0 0 24 24" stroke-width="2"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M10 11v6M14 11v6"/></svg>' +
           '</button>' +
         '</div>' +
@@ -2374,6 +2419,13 @@ function genRenderReview() {
   } else {
     window.scrollTo(0, 0);
   }
+}
+
+/* Hervorhebung beim Hovern über den Papierkorb: beide Fassungen der Folie
+   sehen aus wie gewählt. Rein visuell, ändert keine Auswahl. */
+function genLoeschVorschau(position, an) {
+  const block = document.getElementById('block-' + position);
+  if (block) block.classList.toggle('loesch-vorschau', !!an);
 }
 
 function genVariantCard(s, v) {
@@ -2452,11 +2504,10 @@ function genPick(position, v) {
    nicht gelöscht — die Endfassung enthält ohnehin nur die gewählte. */
 function genApplySelection() {
   const slides = genManifestSlides();
-  let a = 0, b = 0;
+  let gewaehlt = 0;
   slides.forEach(function (s) {
     const pick = genSel[s.position] || null;   // null = noch nicht entschieden
-    if (pick === 'a') a++;
-    if (pick === 'b') b++;
+    if (pick) gewaehlt++;
     ['a', 'b'].forEach(function (v) {
       const card = document.getElementById('var-' + s.position + '-' + v);
       if (!card) return;
@@ -2467,14 +2518,8 @@ function genApplySelection() {
       const span = card.querySelector('.select-btn span');
       if (span) span.textContent = on ? 'Ausgewählt · abwählen' : 'Diese Fassung wählen';
     });
-    const ch = document.getElementById('chosen-' + s.position);
-    if (ch) {
-      ch.textContent = pick ? genFassungName(pick) : 'noch offen';
-    }
   });
-  document.getElementById('cnt-a').textContent = a;
-  document.getElementById('cnt-b').textContent = b;
-  genAktualisiereInsel(slides.length, a + b);
+  genAktualisiereInsel(slides.length, gewaehlt);
 }
 
 /* Die Insel zeigt an, ob schon alles entschieden ist — der Download braucht
@@ -2483,6 +2528,12 @@ function genAktualisiereInsel(gesamt, gewaehlt) {
   const btn = document.getElementById('btn-finalize');
   const hinweis = document.getElementById('insel-hinweis');
   if (!btn || !hinweis) return;
+  if (genFolieLoeschtGerade) {
+    // Zwischen Löschen und neuem Rendern gibt es keine gültige Endfassung.
+    btn.disabled = true;
+    hinweis.textContent = 'Vorschau wird neu gerendert …';
+    return;
+  }
   if (genIstImport()) {
     // Es gibt nichts zu wählen — die hochgeladene Datei ist die Endfassung.
     btn.disabled = false;
@@ -2962,14 +3013,29 @@ async function genDeleteSlide(position) {
 
   const titel = s.title || 'ohne Titel';
   const danach = slides.length - 1;
-  // Keine Rückfrage: der Löschweg läuft deterministisch im Worker
-  // (Build 2026-09-09d, `#folie-entfernen`) und ist in Sekunden durch. Die
-  // Elternfassung der Kette bleibt als Job-Zeile erhalten, nichts ist
-  // unwiederbringlich. Doppelklicks fängt das Sperren des Knopfes ab.
+  // Keine Rückfrage und kein Loader: die Folie verschwindet sofort aus der
+  // Vorschau, das Neurendern läuft still im Hintergrund (deterministisch im
+  // Worker, Build 2026-09-09d, Marker `#folie-entfernen` — kein Agent). Die
+  // Elternfassung der Kette bleibt als Job-Zeile erhalten.
   if (genFolieLoeschtGerade) return;
   genFolieLoeschtGerade = true;
-  document.querySelectorAll('.slide-block .icon-actions .icon-btn').forEach(function (b) { b.disabled = true; });
-  genToast('Folie ' + position + ' („' + titel + '“) wird entfernt …');
+
+  const block = document.getElementById('block-' + position);
+  if (block) block.remove();
+  delete genSel[position];
+  genAktualisiereInsel(danach, Object.keys(genSel).length);
+  // Solange die Positionen der übrigen Folien noch die alten sind, dürfen
+  // deren Knöpfe nicht greifen — sie träfen im neuen Stand die falsche Folie.
+  const slidesRoot = document.getElementById('slides');
+  if (slidesRoot) slidesRoot.classList.add('neu-rendern');
+  const hinweis = document.getElementById('render-hinweis');
+  if (hinweis) {
+    hinweis.textContent = 'Folie ' + position + ' gelöscht · Vorschau wird neu gerendert …';
+    hinweis.hidden = false;
+  }
+  document.getElementById('end-note').textContent =
+    'Ende der Vorschau · ' + danach + ' Folien';
+  genToast('Folie ' + position + ' („' + titel + '“) gelöscht.');
 
   try {
     // 1) Erst die Bildzuordnung nachziehen: Bilder dieser Folie entfernen,
@@ -3004,14 +3070,16 @@ async function genDeleteSlide(position) {
       method: 'POST',
       body: JSON.stringify(genLastRequest.payload)
     });
-    genToast('Folie ' + position + ' entfernt – die Vorschau wird neu gerendert (' +
-      danach + ' Folien).');
-    genFolieLoeschtGerade = false;
-    location.hash = '#job=' + fb.job_id;
+    // Adresse mitführen, ohne zu routen: ein Reload landet auf dem neuen
+    // Stand, die stehende Vorschau bleibt aber unangetastet.
+    try { history.replaceState(null, '', '#job=' + fb.job_id); } catch (e2) { /* egal */ }
+    genStartWatchingStill(fb.job_id);
   } catch (e) {
     genFolieLoeschtGerade = false;
-    document.querySelectorAll('.slide-block .icon-actions .icon-btn').forEach(function (b) { b.disabled = false; });
-    genToast('Löschen fehlgeschlagen: ' + e.message);
+    if (slidesRoot) slidesRoot.classList.remove('neu-rendern');
+    if (hinweis) { hinweis.textContent = ''; hinweis.hidden = true; }
+    genToast('Löschen fehlgeschlagen: ' + e.message + ' – Vorschau wird neu geladen.');
+    setTimeout(function () { genFetchStatus(); }, 50);
   }
 }
 
