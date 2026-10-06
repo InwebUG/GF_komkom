@@ -2118,10 +2118,47 @@ async function eigeneLoadLibrary() {
         '<h4>' + esc(b.titel) + '</h4>' +
         (datum ? '<div class="pair">hochgeladen am ' + esc(datum) + '</div>' : '') +
         '<div class="actions">' +
+          '<button class="btn btn-sm btn-outline" title="Dieses Bild als Stilreferenz in die Referenzbibliothek übernehmen" ' +
+            'onclick="eigeneZuReferenz(\'' + esc(b.slug) + '\')">Zu Referenz hinzufügen</button>' +
           '<button class="btn btn-sm btn-outline" onclick="eigeneDelete(\'' + esc(b.slug) + '\')">Löschen</button>' +
         '</div>' +
       '</div></div>';
   }).join('');
+}
+
+/* Eigenes Bild als Stilreferenz übernehmen.
+   Die beiden Regale sind bewusst getrennt: eigene Bilder (`komkom-pptx/
+   bibliothek/`) landen auf einer Folie, Referenzen (`komkom-skill/image-style/
+   refs/`) steuern den Bildstil und wandern in `refs/INDEX.json`. Eine Referenz
+   braucht dafür Angaben, die kein Automatismus erfinden darf — Bildwelt,
+   Bildlogik, Bildaussage, Prompt. Deshalb legt dieser Knopf nichts still an,
+   sondern füllt das Referenzformular mit Bild und Titel vor; den Rest trägt
+   ein Mensch nach. Das Bild läuft dabei durch denselben Weg wie ein frischer
+   Upload (verkleinert, als JPEG). Das eigene Bild bleibt, wo es ist — die
+   Referenz ist eine Kopie, kein Umzug. */
+async function eigeneZuReferenz(slug) {
+  const b = eigeneCache.find(function (x) { return x.slug === slug; });
+  if (!b || !b.url) { genToast('Bild nicht gefunden – Bibliothek neu laden.'); return; }
+  try {
+    const res = await fetch(b.url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const blob = await res.blob();
+    // Signierte Adressen liefern den Typ sauber mit; notfalls als JPEG lesen,
+    // das Bild selbst wird ohnehin über Canvas neu kodiert.
+    const typ = /^image\/(png|jpeg|webp)$/.test(blob.type) ? blob.type : 'image/jpeg';
+    const datei = new File([blob], (b.titel || slug) + '.jpg', { type: typ });
+
+    refToggleForm(true);
+    refResetForm();
+    // Titel VOR refPickFile setzen: der Vorschlag aus dem Dateinamen greift
+    // nur in ein leeres Feld, und der gepflegte Titel ist der bessere.
+    document.getElementById('ref-titel').value = b.titel || '';
+    document.getElementById('ref-form-title').textContent = 'Eigenes Bild als Referenz aufnehmen';
+    refPickFile(datei);
+    genToast('Bild übernommen – jetzt Bildwelt, Bildlogik und die übrigen Angaben ergänzen, dann speichern.');
+  } catch (e) {
+    genToast('Übernehmen fehlgeschlagen: ' + e.message);
+  }
 }
 
 async function eigeneDelete(slug) {
