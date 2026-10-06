@@ -2278,6 +2278,14 @@ async function genFetchStatus() {
 
     if (job.status === 'error') {
       genStopWatching();
+      // Die Fehlerkarte liegt in der Statusansicht. Lief der Job still im
+      // Hintergrund (gelöschte Folie), ist die ausgeblendet — dann bliebe der
+      // Fehler unsichtbar und der Hinweis „wird neu gerendert" stünde ewig.
+      genFolieLoeschtGerade = false;
+      document.getElementById('job-status-card').hidden = false;
+      document.getElementById('job-review').hidden = true;
+      const insel = document.getElementById('kk-insel');
+      if (insel) insel.hidden = true;
       document.getElementById('gen-loader').hidden = true;
       document.getElementById('gen-joberror-msg').textContent = job.error || 'Unbekannter Fehler bei der Generierung.';
       document.getElementById('gen-joberror').hidden = false;
