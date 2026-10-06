@@ -979,7 +979,14 @@ pushInit();
    Übersicht: alle Jobs laden und zu Präsentations-Ketten gruppieren
    (Wurzel = parent_job null; Kette über parent_job verfolgen)
    ============================================================ */
+/* Solange jemand einen Titel tippt, darf die Tabelle nicht neu gezeichnet
+   werden — das Eingabefeld hängt in einer Zelle und wäre mitsamt Fokus weg.
+   Der Takt merkt sich den verpassten Durchgang und holt ihn danach nach. */
+let genTitelBearbeitung = 0;
+let genUebersichtNachholen = false;
+
 async function genLoadOverview() {
+  if (genTitelBearbeitung) { genUebersichtNachholen = true; return; }
   const tbl = document.getElementById('tbl-decks');
   const empty = document.getElementById('decks-empty');
   let rows = [];
@@ -1106,10 +1113,17 @@ function genTitelBearbeiten(el) {
   function abschliessen(speichern) {
     if (fertig) return;
     fertig = true;
+    genTitelBearbeitung--;
     const neu = input.value.trim();
     input.remove();                    // löst blur aus — fertig-Flag fängt das ab
     wrap.hidden = false;
-    if (speichern && neu && neu !== alt) genTitelSpeichern(td, neu, alt);
+    if (speichern && neu && neu !== alt) {
+      // Nachholen erst, wenn der Schreibvorgang durch ist — eine Auffrischung
+      // davor holte den alten Titel zurück.
+      genTitelSpeichern(td, neu, alt).then(genUebersichtNachholenFalls);
+    } else {
+      genUebersichtNachholenFalls();
+    }
   }
   input.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') { e.preventDefault(); abschliessen(true); }
@@ -1117,9 +1131,17 @@ function genTitelBearbeiten(el) {
   });
   input.addEventListener('blur', function () { abschliessen(true); });
   wrap.hidden = true;
+  genTitelBearbeitung++;
   td.appendChild(input);
   input.focus();
   input.select();
+}
+
+/* Eine Auffrischung, die währenddessen ausgefallen ist, jetzt nachholen. */
+function genUebersichtNachholenFalls() {
+  if (genTitelBearbeitung || !genUebersichtNachholen) return;
+  genUebersichtNachholen = false;
+  genLoadOverview();
 }
 
 async function genTitelSpeichern(td, neu, alt) {
@@ -2927,6 +2949,8 @@ async function genLoeschenDialog(jobId) {
    Positionen in den hochgeladenen Bildern (macht komkom-slide-image,
    inklusive Umbenennen der Dateien).
    ============================================================ */
+let genFolieLoeschtGerade = false;
+
 async function genDeleteSlide(position) {
   const slides = genManifestSlides();
   const s = slides.find(function (x) { return String(x.position) === String(position); });
@@ -2938,11 +2962,14 @@ async function genDeleteSlide(position) {
 
   const titel = s.title || 'ohne Titel';
   const danach = slides.length - 1;
-  if (!window.confirm(
-    'Folie ' + position + ' („' + titel + '“) mit beiden Fassungen (A · Menschen, B · Gegenstände) löschen?\n\n' +
-    'Die Präsentation hat danach ' + danach + ' statt ' + slides.length + ' Folien; ' +
-    'die nachfolgenden rücken auf. Das passiert direkt, ohne Anpassungsrunde durch den Agenten.'
-  )) return;
+  // Keine Rückfrage: der Löschweg läuft deterministisch im Worker
+  // (Build 2026-09-09d, `#folie-entfernen`) und ist in Sekunden durch. Die
+  // Elternfassung der Kette bleibt als Job-Zeile erhalten, nichts ist
+  // unwiederbringlich. Doppelklicks fängt das Sperren des Knopfes ab.
+  if (genFolieLoeschtGerade) return;
+  genFolieLoeschtGerade = true;
+  document.querySelectorAll('.slide-block .icon-actions .icon-btn').forEach(function (b) { b.disabled = true; });
+  genToast('Folie ' + position + ' („' + titel + '“) wird entfernt …');
 
   try {
     // 1) Erst die Bildzuordnung nachziehen: Bilder dieser Folie entfernen,
@@ -2977,9 +3004,13 @@ async function genDeleteSlide(position) {
       method: 'POST',
       body: JSON.stringify(genLastRequest.payload)
     });
-    genToast('Folie wird entfernt – die Vorschau wird neu gerendert.');
+    genToast('Folie ' + position + ' entfernt – die Vorschau wird neu gerendert (' +
+      danach + ' Folien).');
+    genFolieLoeschtGerade = false;
     location.hash = '#job=' + fb.job_id;
   } catch (e) {
+    genFolieLoeschtGerade = false;
+    document.querySelectorAll('.slide-block .icon-actions .icon-btn').forEach(function (b) { b.disabled = false; });
     genToast('Löschen fehlgeschlagen: ' + e.message);
   }
 }
