@@ -271,6 +271,17 @@
 .deck-stift { width: 26px; height: 26px; opacity: 0; flex-shrink: 0; }
 .deck-stift svg { width: 15px; height: 15px; }
 #tbl-decks tbody tr:hover .deck-stift, .deck-stift:focus-visible { opacity: 1; }
+.review-title:hover .deck-stift { opacity: 1; }
+.review-title .deck-titel-input { max-width: 540px; }
+
+/* Storyboard-Fenster: der Text, aus dem die Präsentation entstanden ist */
+.storyboard-text {
+  white-space: pre-wrap; word-break: break-word;
+  font-family: inherit; font-size: 0.98rem; line-height: 1.55;
+  color: var(--kk-dark); background: var(--kk-offwhite);
+  border: 1px solid var(--kk-border); border-radius: 10px;
+  padding: 14px 16px; margin: 0; max-height: 52vh; overflow: auto;
+}
 .deck-titel-input {
   font: inherit; font-weight: 700; color: var(--kk-dark);
   border: 1px solid var(--kk-orange); border-radius: 8px;
@@ -794,6 +805,7 @@
         </div>
         <div class="review-summary">
           <span class="pill pill-render" id="render-hinweis" hidden></span>
+          <button class="btn btn-sm btn-outline" id="btn-storyboard" onclick="genZeigeStoryboard()" title="Den Text zeigen, aus dem diese Präsentation erzeugt wurde">Storyboard</button>
           <button class="btn btn-sm btn-outline" onclick="genPickAll('a')" title="Für jede Folie die Fassung A wählen">Alle A</button>
           <button class="btn btn-sm btn-outline" onclick="genPickAll('b')" title="Für jede Folie die Fassung B wählen">Alle B</button>
           <span class="scrollpos" id="scroll-pos"></span>
@@ -1088,7 +1100,7 @@ async function genLoadOverview() {
         ? new Date(d.created).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })
         : '–';
       return '<tr class="clickable" onclick="location.hash = \'#job=' + esc(d.latest.id) + '\'" title="Präsentation öffnen">' +
-        '<td data-ids="' + esc(d.ids.join(',')) + '" data-title="' + esc(d.rawTitle) + '">' +
+        '<td data-titel-ziel data-ids="' + esc(d.ids.join(',')) + '" data-title="' + esc(d.rawTitle) + '">' +
           '<div class="deck-titel-wrap">' +
             '<strong class="deck-titel-text" title="Titel ändern" onclick="event.stopPropagation(); genTitelBearbeiten(this)">' + esc(d.title) + '</strong>' +
             '<button class="icon-btn deck-stift" title="Titel ändern" onclick="event.stopPropagation(); genTitelBearbeiten(this)">' +
@@ -1112,8 +1124,10 @@ async function genLoadOverview() {
 /* Titel in der Übersicht umbenennen. Eingabefeld ersetzt den Text in der
    Zelle; Enter oder Verlassen speichert, Escape verwirft. Leer oder
    unverändert wird nicht gespeichert. */
+/* Funktioniert überall, wo ein Element `data-titel-ziel` trägt und darin eine
+   `.deck-titel-wrap` steckt — in der Übersichtszelle wie im Kopf der Vorschau. */
 function genTitelBearbeiten(el) {
-  const td = el.closest('td');
+  const td = el.closest('[data-titel-ziel]');
   if (!td || td.querySelector('.deck-titel-input')) return;
   const alt = td.dataset.title || '';
   const wrap = td.querySelector('.deck-titel-wrap');
@@ -1161,24 +1175,67 @@ function genUebersichtNachholenFalls() {
 }
 
 async function genTitelSpeichern(td, neu, alt) {
-  const ids = (td.dataset.ids || '').split(',').filter(Boolean);
   const text = td.querySelector('.deck-titel-text');
   // Optimistisch anzeigen, bei Fehler zurücknehmen
   text.textContent = neu;
   td.dataset.title = neu;
   try {
+    // In der Übersicht stehen die Ketten-IDs schon in der Zelle. Im Kopf der
+    // Vorschau nicht — dort wird die Kette hier nachgeschlagen, damit der neue
+    // Titel wie in der Übersicht für ALLE Fassungen gilt und nicht nur für die
+    // gerade offene.
+    let ids = (td.dataset.ids || '').split(',').filter(Boolean);
+    if (!ids.length) {
+      const kette = await genKette(genJobId);
+      ids = kette ? kette.ids : (genJobId ? [genJobId] : []);
+    }
+    if (!ids.length) throw new Error('Keine Zeilen zur Präsentation gefunden.');
     const { data, error } = await sb.schema('customer_content').from('komkom_pptx_jobs')
       .update({ title: neu }).in('id', ids).select('id');
     if (error) throw error;
     // Ohne Treffer meldet PostgREST keinen Fehler — RLS oder Kette könnten
     // still leer durchlaufen. Deshalb nachzählen.
     if (!data || !data.length) throw new Error('Keine Zeile geändert.');
+    // Auf der Vorschauseite hängt der Titel auch im Brotkrumen und am Job
+    if (genJob) genJob.title = neu;
+    if (td.closest('#review-title')) { genCrumbLast = null; genJobCrumb(neu); }
     genToast('Titel gespeichert.');
   } catch (e) {
     text.textContent = alt || 'Ohne Titel';
     td.dataset.title = alt;
     genToast('Titel konnte nicht gespeichert werden: ' + e.message);
   }
+}
+
+/* Alle Zeilen einer Präsentation: Wurzel (parent_job null) und alles, was
+   daran hängt. Beide Richtungen werden gebraucht — der Storyboard-Text steht
+   nur in der Wurzel, der Titel gilt für die ganze Kette. */
+async function genKette(jobId) {
+  if (!jobId) return null;
+  const { data, error } = await sb.schema('customer_content').from('komkom_pptx_jobs')
+    .select('id,parent_job,title,kind,input_text,input_file_name,created_at')
+    .order('created_at', { ascending: true });
+  if (error) throw error;
+  const zeilen = data || [];
+  const byId = {};
+  zeilen.forEach(function (r) { byId[r.id] = r; });
+  let wurzel = byId[jobId];
+  if (!wurzel) return null;
+  for (let tiefe = 0; wurzel.parent_job && byId[wurzel.parent_job] && tiefe < 50; tiefe++) {
+    wurzel = byId[wurzel.parent_job];
+  }
+  const ids = [wurzel.id];
+  let gewachsen = true;
+  while (gewachsen) {
+    gewachsen = false;
+    zeilen.forEach(function (r) {
+      if (r.parent_job && ids.indexOf(r.parent_job) !== -1 && ids.indexOf(r.id) === -1) {
+        ids.push(r.id);
+        gewachsen = true;
+      }
+    });
+  }
+  return { wurzel: wurzel, ids: ids };
 }
 
 /* Download-Zelle der Übersicht. Drei Fälle, und keiner davon führt zu einem
@@ -2383,8 +2440,21 @@ function genRenderReview() {
   genUebernehmeSelection(genJob && genJob.selection);
 
   const isFeedback = !!(genJob && genJob.parent_job);
+  const rohTitel = (genJob && genJob.title) || '';
   document.getElementById('review-title').innerHTML =
-    esc((genJob && genJob.title) || 'Präsentation') +
+    // Gleiche Mechanik wie in der Übersicht: Klick auf den Titel oder den Stift
+    // macht daraus ein Eingabefeld. Die Ketten-IDs stehen hier bewusst nicht im
+    // Element — genTitelSpeichern schlägt sie beim Speichern nach.
+    '<span data-titel-ziel data-title="' + esc(rohTitel) + '">' +
+      '<span class="deck-titel-wrap">' +
+        '<strong class="deck-titel-text" title="Titel ändern" onclick="genTitelBearbeiten(this)">' +
+          esc(rohTitel || 'Präsentation') +
+        '</strong>' +
+        '<button class="icon-btn deck-stift" title="Titel ändern" onclick="genTitelBearbeiten(this)">' +
+          '<svg viewBox="0 0 24 24" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>' +
+        '</button>' +
+      '</span>' +
+    '</span>' +
     (isFeedback ? ' <span class="badge badge-orange">Überarbeitete Version</span>' : '') +
     (genJob && genJob.input_file_name
       ? ' <span class="badge badge-gray" title="Keynote-Matrix als Eingabedatei">Matrix: ' + esc(genJob.input_file_name) + '</span>'
@@ -2412,6 +2482,8 @@ function genRenderReview() {
     document.getElementById('job-status-card').hidden = true;
     document.getElementById('job-review').hidden = false;
     document.getElementById('kk-insel').hidden = false;
+    // Hochgeladene Präsentationen haben kein Storyboard — sie sind die Vorlage.
+    document.getElementById('btn-storyboard').hidden = true;
     genJobCrumb(genJob && genJob.title);
     genAktualisiereInsel(0, 0);
     genObserveBlocks();
@@ -2455,6 +2527,7 @@ function genRenderReview() {
   document.getElementById('job-status-card').hidden = true;
   document.getElementById('job-review').hidden = false;
   document.getElementById('kk-insel').hidden = false;
+  document.getElementById('btn-storyboard').hidden = false;
   genJobCrumb(genJob && genJob.title);
   genApplySelection();
   genObserveBlocks();
@@ -2464,6 +2537,90 @@ function genRenderReview() {
   } else {
     window.scrollTo(0, 0);
   }
+}
+
+/* ============================================================
+   Storyboard: der Text, aus dem die Präsentation entstanden ist
+   Er steht in der WURZEL der Kette — eine Anpassungsrunde trägt nur ihren
+   eigenen Änderungswunsch, nicht die ursprüngliche Eingabe.
+   ============================================================ */
+async function genZeigeStoryboard() {
+  const knopf = document.getElementById('btn-storyboard');
+  const alt = knopf.textContent;
+  knopf.disabled = true;
+  knopf.textContent = 'Wird geladen …';
+  let wurzel = null;
+  try {
+    const kette = await genKette(genJobId);
+    wurzel = kette && kette.wurzel;
+  } catch (e) {
+    genToast('Storyboard konnte nicht geladen werden: ' + e.message);
+    knopf.disabled = false;
+    knopf.textContent = alt;
+    return;
+  }
+  knopf.disabled = false;
+  knopf.textContent = alt;
+  if (!wurzel) { genToast('Zur Präsentation wurde keine Ursprungsfassung gefunden.'); return; }
+
+  const text = (wurzel.input_text || '').trim();
+  const datei = wurzel.input_file_name || '';
+  const wann = wurzel.created_at
+    ? new Date(wurzel.created_at).toLocaleString('de-DE', { dateStyle: 'long', timeStyle: 'short' })
+    : '';
+
+  let koerper = '';
+  if (datei) {
+    // Die Matrix liegt im privaten Bucket; der Browser kommt nicht an sie heran.
+    // Ehrlich benennen ist besser, als ein leeres Feld zu zeigen.
+    koerper +=
+      '<p class="gen-help" style="margin-bottom:12px">Erzeugt aus der hochgeladenen Datei ' +
+      '<b>' + esc(datei) + '</b>. Deren Inhalt liegt im geschützten Speicher und lässt sich ' +
+      'hier nicht anzeigen.' + (text ? ' Dazu kam dieser Zusatzwunsch:' : '') + '</p>';
+  }
+  if (text) {
+    koerper += '<pre class="storyboard-text">' + esc(text) + '</pre>';
+  } else if (!datei) {
+    koerper += '<p class="gen-help">Zu dieser Präsentation ist kein Eingabetext gespeichert.</p>';
+  }
+
+  const overlay = document.createElement('div');
+  overlay.className = 'kk-modal-overlay';
+  overlay.innerHTML =
+    '<div class="kk-modal" style="max-width:780px">' +
+      '<div class="kk-modal-head"><div>' +
+        '<h2>Storyboard</h2>' +
+        '<div class="modal-sub">Die Eingabe, aus der diese Präsentation erzeugt wurde' +
+          (wann ? ' &middot; ' + esc(wann) : '') + '</div>' +
+      '</div><button class="kk-modal-close" title="Schließen">&times;</button></div>' +
+      '<div class="kk-modal-body">' + koerper + '</div>' +
+      '<div class="kk-modal-foot"><div></div><div style="display:flex;gap:10px">' +
+        (text ? '<button class="btn btn-sm btn-outline" data-act="kopieren">Text kopieren</button>' : '') +
+        '<button class="btn btn-sm" data-act="zu">Schließen</button>' +
+      '</div></div>' +
+    '</div>';
+
+  function close() {
+    document.removeEventListener('keydown', escHandler);
+    overlay.remove();
+  }
+  function escHandler(e) { if (e.key === 'Escape') close(); }
+  overlay.querySelector('.kk-modal-close').addEventListener('click', close);
+  overlay.querySelector('[data-act="zu"]').addEventListener('click', close);
+  overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+  const kopieren = overlay.querySelector('[data-act="kopieren"]');
+  if (kopieren) {
+    kopieren.addEventListener('click', async function () {
+      try {
+        await navigator.clipboard.writeText(text);
+        genToast('Storyboard in die Zwischenablage kopiert.');
+      } catch (e) {
+        genToast('Kopieren ging nicht – Text bitte von Hand markieren.');
+      }
+    });
+  }
+  document.addEventListener('keydown', escHandler);
+  document.body.appendChild(overlay);
 }
 
 /* Hervorhebung beim Hovern über den Papierkorb: beide Fassungen der Folie
