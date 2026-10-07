@@ -2569,20 +2569,49 @@ async function genZeigeStoryboard() {
     ? new Date(wurzel.created_at).toLocaleString('de-DE', { dateStyle: 'long', timeStyle: 'short' })
     : '';
 
+  // Die Eingabedatei liegt im geschützten Bucket — aus dem Browser heraus ist
+  // sie nicht signierbar (keine Lesepolicy). komkom-job-status liefert die
+  // signierte Adresse mit, damit der Link hier sofort öffnet.
+  let dateiUrl = '';
+  let dateiName = datei;
+  if (datei) {
+    try {
+      const resp = await kkApi('/komkom-job-status?job_id=' + encodeURIComponent(wurzel.id));
+      dateiUrl = (resp.urls && resp.urls.eingabe) || '';
+      dateiName = (resp.urls && resp.urls.eingabe_name) || datei;
+    } catch (e) { /* ohne Link weiter — der Name steht trotzdem da */ }
+  }
+  // Text- und Markdown-Matrizen gleich mit anzeigen: ein Link, der die Datei
+  // nur herunterlädt, beantwortet die Frage „was stand da drin" nicht.
+  let dateiText = '';
+  if (dateiUrl && /\.(md|markdown|txt|text)$/i.test(dateiName)) {
+    try {
+      const r = await fetch(dateiUrl);
+      if (r.ok) dateiText = (await r.text()).trim();
+    } catch (e) { /* dann bleibt der Link */ }
+  }
+
   let koerper = '';
   if (datei) {
-    // Die Matrix liegt im privaten Bucket; der Browser kommt nicht an sie heran.
-    // Ehrlich benennen ist besser, als ein leeres Feld zu zeigen.
     koerper +=
       '<p class="gen-help" style="margin-bottom:12px">Erzeugt aus der hochgeladenen Datei ' +
-      '<b>' + esc(datei) + '</b>. Deren Inhalt liegt im geschützten Speicher und lässt sich ' +
-      'hier nicht anzeigen.' + (text ? ' Dazu kam dieser Zusatzwunsch:' : '') + '</p>';
+      (dateiUrl
+        ? '<a href="' + esc(dateiUrl) + '" target="_blank" rel="noopener"><b>' + esc(dateiName) + '</b></a>'
+        : '<b>' + esc(dateiName) + '</b>') +
+      '.' + (dateiUrl ? ' Der Link öffnet sie direkt.' : ' Sie ließ sich gerade nicht öffnen.') +
+      (text ? ' Dazu kam dieser Zusatzwunsch:' : '') + '</p>';
   }
   if (text) {
     koerper += '<pre class="storyboard-text">' + esc(text) + '</pre>';
-  } else if (!datei) {
+  }
+  if (dateiText) {
+    koerper += (text ? '<p class="gen-help" style="margin:14px 0 6px">Inhalt der Datei:</p>' : '') +
+      '<pre class="storyboard-text">' + esc(dateiText) + '</pre>';
+  }
+  if (!text && !dateiText && !datei) {
     koerper += '<p class="gen-help">Zu dieser Präsentation ist kein Eingabetext gespeichert.</p>';
   }
+  const kopierText = dateiText || text;
 
   const overlay = document.createElement('div');
   overlay.className = 'kk-modal-overlay';
@@ -2595,7 +2624,7 @@ async function genZeigeStoryboard() {
       '</div><button class="kk-modal-close" title="Schließen">&times;</button></div>' +
       '<div class="kk-modal-body">' + koerper + '</div>' +
       '<div class="kk-modal-foot"><div></div><div style="display:flex;gap:10px">' +
-        (text ? '<button class="btn btn-sm btn-outline" data-act="kopieren">Text kopieren</button>' : '') +
+        (kopierText ? '<button class="btn btn-sm btn-outline" data-act="kopieren">Text kopieren</button>' : '') +
         '<button class="btn btn-sm" data-act="zu">Schließen</button>' +
       '</div></div>' +
     '</div>';
@@ -2612,7 +2641,7 @@ async function genZeigeStoryboard() {
   if (kopieren) {
     kopieren.addEventListener('click', async function () {
       try {
-        await navigator.clipboard.writeText(text);
+        await navigator.clipboard.writeText(kopierText);
         genToast('Storyboard in die Zwischenablage kopiert.');
       } catch (e) {
         genToast('Kopieren ging nicht – Text bitte von Hand markieren.');
