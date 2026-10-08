@@ -810,13 +810,17 @@ table.edit-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
 .kk-modal-breit { max-width: min(1320px, calc(100vw - 220px)); }
 @media (max-width: 900px) { .kk-modal-breit { max-width: calc(100vw - 40px); } }
 
-/* Monat + Jahr: beide Felder müssen ihren Inhalt ganz zeigen — „September"
-   ist das längste, vierstellige Jahre sind fix. Deshalb feste Mindestbreiten
-   statt schrumpfender Flexboxen. */
-.kk-monatjahr { display: inline-flex; gap: 6px; }
-.kk-monatjahr .kk-edit-select { padding-right: 24px; }
-.kk-monatjahr .kk-edit-select:first-child { flex: 0 0 auto; min-width: 8.6em; }
-.kk-monatjahr .kk-edit-select:last-child { flex: 0 0 auto; min-width: 5.6em; }
+/* Monat + Jahr teilen sich die Zelle.
+   WICHTIG: `.kk-edit-select` steht auf `width: 100%` und `min-width: 110px`.
+   Zwei davon nebeneinander in einer Flexbox, die nicht schrumpfen darf,
+   ergeben 200 % Breite — genau so lief das Jahresfeld aus der Zelle heraus
+   und unter die Status-Spalte (gemeldet 08.10.2026). Deshalb hier: Breite
+   zurücksetzen, Mindestbreite aufheben, das Jahr fest, der Monat bekommt
+   den Rest. Vier Ziffern brauchen wenig, „September" braucht viel. */
+.kk-monatjahr { display: flex; gap: 6px; width: 100%; min-width: 0; }
+.kk-monatjahr .kk-edit-select { width: auto; min-width: 0; padding-right: 22px; }
+.kk-monatjahr .kk-edit-select:first-child { flex: 1 1 auto; }
+.kk-monatjahr .kk-edit-select:last-child { flex: 0 0 5.4em; }
 .edit-field .edit-note { font-size: 0.78rem; color: var(--kk-gray); margin-top: 4px; line-height: 1.4; }
 
 /* Hinweiszeile „aktuelles Jahr wird automatisch berechnet" im Editor */
