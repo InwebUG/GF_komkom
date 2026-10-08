@@ -489,6 +489,128 @@
 #slides.neu-rendern .icon-actions,
 #slides.neu-rendern .select-btn { pointer-events: none; opacity: 0.45; }
 
+/* ---------- Storyboard: Chat und Prüfung ---------- */
+/* Die Storyboard-Seite läuft schmaler als der Rest: Fließtext mit über
+   1000 px Zeilenlänge liest sich schlecht, und ein Gespräch gehört in eine
+   Spalte, nicht über die ganze Breite. */
+#view-storyboard { max-width: 920px; margin: 0 auto; }
+.sb-verlauf {
+  display: flex; flex-direction: column; gap: 22px;
+  max-height: 60vh; overflow-y: auto; padding: 4px 2px 10px;
+}
+.sb-nachricht { display: flex; }
+.sb-nachricht.ich { justify-content: flex-end; }
+.sb-blase {
+  max-width: 100%; border-radius: 14px; padding: 16px 20px;
+  border: 1px solid var(--kk-border); background: var(--kk-white);
+}
+.sb-nachricht.ich .sb-blase {
+  background: var(--kk-peach); border-color: var(--kk-orange-light);
+  max-width: 76%;
+}
+.sb-rolle {
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.6px;
+  text-transform: uppercase; color: var(--kk-gray); margin-bottom: 6px;
+}
+.sb-eingabe { display: flex; gap: 10px; align-items: flex-end; margin-top: 16px; }
+.sb-eingabe textarea {
+  flex: 1; min-height: 92px; resize: vertical; line-height: 1.55;
+  font-family: 'Roboto Condensed', Arial, sans-serif; font-size: 1rem;
+  color: var(--kk-dark); padding: 12px 15px;
+  border: 1px solid var(--kk-border); border-radius: 10px; background: var(--kk-white);
+}
+.sb-eingabe textarea:focus { outline: none; border-color: var(--kk-orange); box-shadow: 0 0 0 3px var(--kk-peach); }
+/* „Denkt nach" mit kleinem Stern, der pulst und sich dreht — dasselbe
+   Signal wie in Claude Code: es passiert etwas, auch wenn noch nichts steht. */
+.sb-denkt { display: inline-flex; align-items: center; gap: 9px; font-size: 0.92rem; color: var(--kk-gray); }
+.sb-stern {
+  display: inline-block; color: var(--kk-orange); font-size: 1.05rem; line-height: 1;
+  animation: sb-puls 1.2s ease-in-out infinite;
+}
+@keyframes sb-puls {
+  0%, 100% { transform: scale(0.8) rotate(0deg); opacity: 0.55; }
+  50%      { transform: scale(1.15) rotate(90deg); opacity: 1; }
+}
+/* Schreibmarke am Ende des Textes, solange er noch wächst */
+.sb-marke {
+  display: inline-block; width: 2px; height: 1.05em; margin-left: 2px;
+  background: var(--kk-orange); vertical-align: text-bottom;
+  animation: sb-blinken 1s step-end infinite;
+}
+@keyframes sb-blinken { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .sb-stern, .sb-marke { animation: none; }
+}
+
+/* Markdown der Antworten. Inhalte, die auf eine Folie sollen, stehen in
+   weißen Blöcken — sie heben sich vom Creme des Hintergrunds ab. */
+.md > *:first-child { margin-top: 0; }
+.md > *:last-child { margin-bottom: 0; }
+.md h1 { font-size: 1.3rem; margin: 18px 0 8px; color: var(--kk-dark); }
+.md h2 { font-size: 1.12rem; margin: 18px 0 8px; color: var(--kk-dark); }
+.md h3 { font-size: 1rem; margin: 14px 0 6px; color: var(--kk-orange-dark); text-transform: uppercase; letter-spacing: 0.4px; }
+.md p { margin: 8px 0; line-height: 1.6; }
+.md ul, .md ol { margin: 8px 0 8px 22px; }
+.md li { margin: 4px 0; line-height: 1.55; }
+.md code { background: var(--kk-peach); border-radius: 4px; padding: 1px 5px; font-size: 0.92em; }
+.md pre, .md blockquote {
+  background: var(--kk-white); border: 1px solid var(--kk-border);
+  border-left: 3px solid var(--kk-orange); border-radius: 8px;
+  padding: 12px 16px; margin: 12px 0; overflow-x: auto;
+}
+.md pre code { background: none; padding: 0; white-space: pre-wrap; }
+.md blockquote p { margin: 4px 0; }
+.md table { border-collapse: collapse; margin: 12px 0; width: 100%; }
+.md th, .md td { border: 1px solid var(--kk-border); padding: 6px 10px; text-align: left; font-size: 0.95rem; }
+.md th { background: var(--kk-peach); font-weight: 700; }
+.md hr { border: none; border-top: 1px solid var(--kk-border); margin: 16px 0; }
+
+/* Prüfung: eine Karte je Folie, mit zwei Schaltern */
+.pruef-folie { border: 1px solid var(--kk-border); border-radius: 12px; background: var(--kk-white); padding: 16px 18px; margin-bottom: 14px; }
+.pruef-kopf { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.pruef-kopf .folie-no { flex-shrink: 0; }
+.pruef-headline { font-size: 1.08rem; font-weight: 700; color: var(--kk-dark); }
+.pruef-feld { margin: 6px 0; font-size: 0.95rem; line-height: 1.55; }
+.pruef-feld b { color: var(--kk-orange-dark); font-weight: 700; }
+.pruef-schalter { display: flex; gap: 26px; flex-wrap: wrap; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--kk-border); }
+.schalter { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
+.schalter input { position: absolute; opacity: 0; width: 0; height: 0; }
+.schalter .bahn {
+  width: 42px; height: 24px; border-radius: 12px; background: var(--kk-gray);
+  position: relative; transition: background 0.15s; flex-shrink: 0;
+}
+.schalter .bahn::after {
+  content: ''; position: absolute; top: 3px; left: 3px;
+  width: 18px; height: 18px; border-radius: 50%; background: #fff;
+  transition: transform 0.15s;
+}
+.schalter input:checked + .bahn { background: var(--kk-orange); }
+.schalter input:checked + .bahn::after { transform: translateX(18px); }
+.schalter input:focus-visible + .bahn { box-shadow: 0 0 0 3px var(--kk-peach); }
+.schalter .wort { font-size: 0.95rem; font-weight: 500; color: var(--kk-dark); }
+.schalter .wort span { color: var(--kk-gray); font-weight: 400; }
+/* Rahmenangaben: zehn Felder, deshalb eng gesetzt und zweispaltig. Der
+   Hinweistext steht klein darunter, nicht als eigener Absatz dazwischen. */
+#sb-vorgaben-felder .gen-field { margin-top: 14px; }
+#sb-vorgaben-felder label { font-size: 0.72rem; margin-bottom: 4px; }
+#sb-vorgaben-felder input, #sb-vorgaben-felder textarea { padding: 8px 11px; font-size: 0.95rem; }
+#sb-vorgaben-felder textarea { min-height: 58px; }
+#sb-vorgaben-felder .gen-note { font-size: 0.78rem; margin-top: 3px; line-height: 1.4; }
+.sb-kopfzeile { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.sb-kopfzeile .hint { font-size: 0.85rem; color: var(--kk-gray); }
+.sb-tasten { font-size: 0.82rem; color: var(--kk-gray); margin-top: 8px; }
+.sb-tasten kbd {
+  font-family: inherit; font-size: 0.78rem; background: var(--kk-white);
+  border: 1px solid var(--kk-border); border-bottom-width: 2px;
+  border-radius: 5px; padding: 1px 6px; color: var(--kk-dark);
+}
+
+.pruef-hinweis {
+  background: var(--kk-peach); border-left: 3px solid var(--kk-orange);
+  border-radius: 8px; padding: 12px 16px; margin-bottom: 16px;
+}
+.pruef-hinweis ul { margin: 6px 0 0 20px; }
+
 @media (max-width: 1080px) { .variant-grid { grid-template-columns: 1fr; } }
 @media (max-width: 720px) { .ref-grid2 { grid-template-columns: 1fr; } }
 </style>
@@ -508,7 +630,7 @@
       <div class="empty-note" id="decks-empty" hidden>Noch keine Präsentationen vorhanden.</div>
     </div>
     <div class="gen-cta">
-      <button class="btn btn-lg" onclick="location.hash = '#neu'">+ Neue Präsentation erstellen</button>
+      <button class="btn btn-lg" onclick="genStartAuswahl()">+ Neue Präsentation erstellen</button>
       <button class="btn btn-lg" onclick="location.hash = '#import'">↑ Eigene Präsentation hochladen</button>
     </div>
     <div class="gen-cta" style="margin-top:12px">
@@ -555,7 +677,7 @@
       <div class="gen-error" id="gen-form-error" hidden></div>
       <div class="gen-foot">
         <button class="btn btn-outline" onclick="location.hash = ''">Zur Übersicht</button>
-        <button class="btn" id="btn-generate" onclick="genCreateJob()">Präsentation generieren</button>
+        <button class="btn" id="btn-generate" onclick="pruefStarten()">Präsentation generieren</button>
       </div>
     </div>
   </section>
@@ -774,6 +896,54 @@
     </div>
   </section>
 
+  <!-- Ansicht 5: Storyboard im Dialog erarbeiten ('#storyboard') -->
+  <section id="view-storyboard" hidden>
+    <div class="card" id="sb-vorgaben-karte">
+      <div class="card-header">
+        <div class="sb-kopfzeile">
+          <h2>Rahmen klären</h2>
+          <span class="hint" id="sb-vorgaben-stand"></span>
+        </div>
+        <button class="btn btn-sm btn-outline" id="btn-sb-vorgaben" onclick="sbVorgabenUmschalten()">Einklappen</button>
+      </div>
+      <p class="gen-help">Jedes Storyboard braucht diese Angaben, und es sind jedes Mal dieselben.
+        Was hier steht, fragt Claude nicht mehr. Leere Felder sind in Ordnung.</p>
+      <div class="ref-grid2" id="sb-vorgaben-felder"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h2>Storyboard erarbeiten</h2>
+        <button class="btn btn-sm" id="btn-sb-uebernehmen" onclick="sbUebernehmen()" hidden>Storyboard übernehmen</button>
+      </div>
+      <div class="sb-verlauf" id="sb-verlauf"></div>
+      <div class="sb-eingabe">
+        <textarea id="sb-text" autocomplete="off"></textarea>
+        <button class="btn" id="btn-sb-senden" onclick="sbSenden()">Senden</button>
+      </div>
+      <div class="sb-tasten"><kbd>&#8984;</kbd> + <kbd>Enter</kbd> sendet &middot;
+        <kbd>Enter</kbd> macht einen Absatz &middot; eine Zeile, die mit <kbd>1.</kbd> oder
+        <kbd>-</kbd> beginnt, wird beim Absatz fortgezählt</div>
+      <div class="gen-error" id="sb-error" hidden></div>
+    </div>
+  </section>
+
+  <!-- Ansicht 6: Storyboard geprüft ('#pruefung') -->
+  <section id="view-pruefung" hidden>
+    <div class="card">
+      <div class="card-header">
+        <h2>Storyboard geprüft</h2>
+        <span class="hint" id="pruef-zahl"></span>
+      </div>
+      <div id="pruef-hinweise"></div>
+      <div id="pruef-folien"></div>
+      <div class="gen-foot">
+        <button class="btn btn-outline" onclick="location.hash = '#neu'">Zurück zur Eingabe</button>
+        <button class="btn" id="btn-pruef-erzeugen" onclick="pruefErzeugen()">Präsentation jetzt erzeugen</button>
+      </div>
+    </div>
+  </section>
+
   <!-- Ansicht 3: Loader / Vorschau ('#job=<id>') -->
   <section id="view-job" hidden>
     <div class="card" id="job-status-card">
@@ -943,7 +1113,8 @@ async function kkApi(path, opts) {
    '' = Übersicht · '#neu' = Erstellung · '#job=<id>' = Loader/Vorschau
    ============================================================ */
 function genShowView(id) {
-  ['view-home', 'view-new', 'view-job', 'view-refs', 'view-import'].forEach(function (s) {
+  ['view-home', 'view-new', 'view-job', 'view-refs', 'view-import',
+   'view-storyboard', 'view-pruefung'].forEach(function (s) {
     document.getElementById(s).hidden = (s !== id);
   });
   // Die Insel gehört zur Vorschau; anderswo wäre sie ohne Bezug
@@ -986,6 +1157,15 @@ function genRoute() {
       { label: 'Eigene Präsentation' }
     ]);
     genShowView('view-import');
+  } else if (h === '#storyboard') {
+    kkSetBreadcrumb([
+      { label: 'PPTX-Generator', href: 'generator.html' },
+      { label: 'Storyboard erarbeiten' }
+    ]);
+    genShowView('view-storyboard');
+    sbFelderBauen();
+    sbRendern();
+    document.getElementById('sb-text').focus();
   } else if (h === '#referenzen') {
     kkSetBreadcrumb([
       { label: 'PPTX-Generator', href: 'generator.html' },
@@ -1001,6 +1181,8 @@ function genRoute() {
   }
 }
 window.addEventListener('hashchange', genRoute);
+sbLaden();
+document.getElementById('sb-text').addEventListener('keydown', sbTaste);
 pushInit();
 
 /* ============================================================
@@ -1313,6 +1495,598 @@ function genStarteUebersichtsTakt() {
 }
 
 /* ============================================================
+   Storyboard: prüfen oder im Dialog erarbeiten
+   Vorgeschalteter Schritt vor dem Erzeugen. Beides läuft über
+   komkom-storyboard -> Container-Worker (Claude-Abo, pptx-design-Skill).
+   ============================================================ */
+
+/* Die Angaben, die jede Keynote-Matrix braucht und die jedes Mal dieselben
+   sind (references/MATRIX.md). Sie vorab abzufragen spart Claude die
+   immer gleichen Rückfragen. Bewusst NICHT dabei: Stil, Farben, Bildwelt —
+   der Master ist das Design, A und B entstehen immer beide. Eine Frage danach
+   wäre eine Scheinfrage. */
+const SB_VORGABEN = [
+  { key: 'anlass',        label: 'Anlass und Format',           hinweis: 'Vortrag, Workshop, Pitch?', lang: false },
+  { key: 'dauer',         label: 'Dauer oder Folienzahl',       hinweis: 'z. B. „45 Minuten“ oder „rund 20 Folien“', lang: false },
+  { key: 'zielgruppe',    label: 'Zielgruppe',                  hinweis: 'Wer sitzt im Raum, was weiß er schon?', lang: true },
+  { key: 'kernbotschaft', label: 'Die eine Kernbotschaft',      hinweis: 'Der Satz, mit dem das Publikum rausgeht.', lang: true },
+  { key: 'akte',          label: 'Akte / Kapitel',              hinweis: 'Namen der Akte – oder leer lassen. Ohne Akte entstehen keine Sektionsfolien, erfunden wird nichts.', lang: true },
+  { key: 'evidenz',       label: 'Belege: Daten, Zahlen, Quellen', hinweis: 'Nur was hier steht, darf auf eine Folie. Fehlt es, bleibt die Stelle leer.', lang: true },
+  { key: 'zitate',        label: 'Zitate wörtlich samt Quelle', hinweis: 'Zitate sind unantastbar und werden nie gekürzt.', lang: true },
+  { key: 'interaktion',   label: 'Interaktion',                 hinweis: 'Nur als Sprechernotiz – oder ausdrücklich mit eigener Folie?', lang: true },
+  { key: 'schluss',       label: 'Schluss',                     hinweis: 'Transferkarte, JobMemo oder offener Ausklang?', lang: false },
+  { key: 'titel',         label: 'Titel und Untertitel',        hinweis: '', lang: false }
+];
+
+let sbVerlauf = [];
+let sbVorgaben = {};
+let sbLaeuft = false;
+
+/* Zwischenstand überlebt einen Ansichtswechsel und ein Neuladen. Nur in
+   diesem Browser, nur diese Sitzung — ein Storyboard im Entstehen ist
+   Arbeitsstand, kein Datensatz. */
+function sbSichern() {
+  try {
+    sessionStorage.setItem('kk-sb', JSON.stringify({ verlauf: sbVerlauf, vorgaben: sbVorgaben }));
+  } catch (e) { /* privater Modus o. ä. — dann eben nicht */ }
+}
+function sbLaden() {
+  try {
+    const roh = sessionStorage.getItem('kk-sb');
+    if (!roh) return;
+    const d = JSON.parse(roh);
+    if (Array.isArray(d.verlauf)) sbVerlauf = d.verlauf;
+    if (d.vorgaben && typeof d.vorgaben === 'object') sbVorgaben = d.vorgaben;
+  } catch (e) { /* ein kaputter Stand ist kein Grund, nichts anzuzeigen */ }
+}
+
+/* ---------- Markdown ----------
+   Bewusst von Hand statt als Bibliothek: gebraucht werden Überschriften,
+   Listen, Tabellen, Zitat- und Codeblöcke. Alles wird VOR dem Auszeichnen
+   maskiert — die Antwort kommt aus einem Modell und ist nie vertrauenswürdiges
+   HTML. */
+const MD_PLATZ = '@@KKBLOCK';
+
+function mdZuHtml(roh) {
+  const bloecke = [];
+  let text = String(roh || '').replace(/\r\n/g, '\n');
+
+  // 1) Codeblöcke herausnehmen, damit ihr Inhalt unangetastet bleibt
+  text = text.replace(/```[^\n]*\n([\s\S]*?)```/g, function (_, inhalt) {
+    bloecke.push('<pre><code>' + esc(inhalt.replace(/\n$/, '')) + '</code></pre>');
+    return MD_PLATZ + (bloecke.length - 1) + '@@';
+  });
+
+  text = esc(text);
+
+  const zeilen = text.split('\n');
+  const aus = [];
+  let liste = null;
+  let zitat = [];
+  let absatz = [];
+
+  function absatzSchliessen() {
+    if (absatz.length) { aus.push('<p>' + inline(absatz.join(' ')) + '</p>'); absatz = []; }
+  }
+  function listeSchliessen() {
+    if (liste) { aus.push('</' + liste + '>'); liste = null; }
+  }
+  function zitatSchliessen() {
+    if (zitat.length) {
+      aus.push('<blockquote>' + zitat.map(function (z) { return '<p>' + inline(z) + '</p>'; }).join('') + '</blockquote>');
+      zitat = [];
+    }
+  }
+  function allesSchliessen() { absatzSchliessen(); listeSchliessen(); zitatSchliessen(); }
+  /* Leerzeile: Absatz und Zitat enden, die Liste NICHT. Sonst beginnt nach
+     jedem Zwischenraum eine neue Liste — und damit wieder bei 1. Genau so
+     sahen die Rückfragen aus: dreimal „1." statt 1, 2, 3. */
+  function absatzUndZitatSchliessen() { absatzSchliessen(); zitatSchliessen(); }
+
+  for (let i = 0; i < zeilen.length; i++) {
+    const t = zeilen[i].trim();
+
+    if (t.indexOf(MD_PLATZ) === 0) { allesSchliessen(); aus.push(t); continue; }
+    if (!t) { absatzUndZitatSchliessen(); continue; }
+
+    const ueber = /^(#{1,6})\s+(.*)$/.exec(t);
+    if (ueber) {
+      allesSchliessen();
+      const n = Math.min(ueber[1].length + 1, 4);   // '#' wird h2 — h1 gehört der Seite
+      aus.push('<h' + n + '>' + inline(ueber[2]) + '</h' + n + '>');
+      continue;
+    }
+    if (/^(-{3,}|\*{3,}|_{3,})$/.test(t)) { allesSchliessen(); aus.push('<hr>'); continue; }
+
+    // Tabelle: Kopfzeile, Trennzeile, dann Datenzeilen
+    const naechste = (zeilen[i + 1] || '').trim();
+    if (/^\|.*\|$/.test(t) && /^[\s|:-]+$/.test(naechste) && naechste.indexOf('|') !== -1) {
+      allesSchliessen();
+      const zeilenTab = [t];
+      i++;
+      while (i + 1 < zeilen.length && /^\|.*\|$/.test((zeilen[i + 1] || '').trim())) {
+        zeilenTab.push(zeilen[++i].trim());
+      }
+      const zellen = function (z) {
+        return z.replace(/^\||\|$/g, '').split('|').map(function (c) { return c.trim(); });
+      };
+      const kopf = zellen(zeilenTab[0]);
+      aus.push('<table><thead><tr>' +
+        kopf.map(function (c) { return '<th>' + inline(c) + '</th>'; }).join('') +
+        '</tr></thead><tbody>' +
+        zeilenTab.slice(1).map(function (z) {
+          return '<tr>' + zellen(z).map(function (c) { return '<td>' + inline(c) + '</td>'; }).join('') + '</tr>';
+        }).join('') +
+        '</tbody></table>');
+      continue;
+    }
+
+    if (/^&gt;\s?/.test(t)) { absatzSchliessen(); listeSchliessen(); zitat.push(t.replace(/^&gt;\s?/, '')); continue; }
+    zitatSchliessen();
+
+    const liPunkt = /^[-*]\s+(.*)$/.exec(t);
+    const liZahl = /^\d+[.)]\s+(.*)$/.exec(t);
+    if (liPunkt || liZahl) {
+      absatzSchliessen();
+      const art = liPunkt ? 'ul' : 'ol';
+      if (liste !== art) { listeSchliessen(); aus.push('<' + art + '>'); liste = art; }
+      aus.push('<li>' + inline((liPunkt || liZahl)[1]) + '</li>');
+      continue;
+    }
+    listeSchliessen();
+    absatz.push(t);
+  }
+  allesSchliessen();
+
+  return aus.join('\n').replace(/@@KKBLOCK(\d+)@@/g, function (_, n) { return bloecke[Number(n)]; });
+
+  function inline(t) {
+    return t
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/(^|[\s(])\*([^*\n]+)\*/g, '$1<em>$2</em>')
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  }
+}
+
+/* ---------- Auswahl am Anfang ----------
+   Steht VOR dem Formular: Wer noch kein Storyboard hat, soll nicht erst ein
+   leeres Textfeld sehen und dann merken, dass es Hilfe gäbe. Wer eines hat,
+   ist mit einem Klick im gewohnten Formular. */
+function genStartAuswahl() {
+  const overlay = document.createElement('div');
+  overlay.className = 'kk-modal-overlay';
+  overlay.innerHTML =
+    '<div class="kk-modal" style="max-width:640px">' +
+      '<div class="kk-modal-head"><div>' +
+        '<h2>Neue Präsentation</h2>' +
+        '<div class="modal-sub">Am Anfang steht das Storyboard – hast du schon eines?</div>' +
+      '</div><button class="kk-modal-close" title="Schließen">&times;</button></div>' +
+      '<div class="kk-modal-body">' +
+        '<div class="gen-field" style="margin-top:0">' +
+          '<button class="btn btn-lg" style="width:100%" data-act="chat">Storyboard erstellen</button>' +
+          '<p class="gen-help" style="margin-top:6px">Im Gespräch erarbeitet – mit Rückfragen, bis Akte, ' +
+          'Kernbotschaft, Belege und Übergänge stehen. Das Ergebnis landet anschließend im Eingabefeld.</p>' +
+        '</div>' +
+        '<div class="gen-field">' +
+          '<button class="btn btn-lg btn-outline" style="width:100%" data-act="vorhanden">Storyboard ist vorhanden</button>' +
+          '<p class="gen-help" style="margin-top:6px">Text einfügen oder Keynote-Matrix hochladen. Vor dem Erzeugen ' +
+          'lässt es sich prüfen: Folie für Folie, mit Schaltern für Bild und Grafik.</p>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+  function close() { document.removeEventListener('keydown', escH); overlay.remove(); }
+  function escH(e) { if (e.key === 'Escape') close(); }
+  overlay.querySelector('.kk-modal-close').addEventListener('click', close);
+  overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+  overlay.querySelector('[data-act="chat"]').addEventListener('click', function () { close(); location.hash = '#storyboard'; });
+  overlay.querySelector('[data-act="vorhanden"]').addEventListener('click', function () { close(); location.hash = '#neu'; });
+  document.addEventListener('keydown', escH);
+  document.body.appendChild(overlay);
+}
+
+/* ---------- Chat ---------- */
+/* Tastenführung im Eingabefeld.
+   Senden nur mit Cmd/Strg+Enter — ein Storyboard-Satz ist oft mehrzeilig, und
+   ein versehentlich abgeschickter halber Gedanke kostet einen ganzen Zug.
+   Enter macht einen Absatz und führt dabei eine begonnene Aufzählung fort:
+   „1. …" wird zu „2. ", „- …" zu „- ". Zweimal Enter beendet die Liste und
+   räumt die leer gebliebene Marke wieder weg; Rücktaste direkt danach
+   ebenfalls. */
+function sbTaste(e) {
+  const feld = e.target;
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); sbSenden(); return; }
+
+  const vor = feld.value.slice(0, feld.selectionStart);
+  const zeile = vor.slice(vor.lastIndexOf('\n') + 1);
+  const punkt = /^(\s*)(\d+)([.)])(\s+)(.*)$/.exec(zeile);
+  const strich = /^(\s*)([-*])(\s+)(.*)$/.exec(zeile);
+
+  if (e.key === 'Enter' && !e.metaKey && !e.ctrlKey && (punkt || strich)) {
+    const inhalt = punkt ? punkt[5] : strich[4];
+    e.preventDefault();
+    if (!inhalt.trim()) {
+      // Leere Marke: Liste beenden und die Marke entfernen
+      sbErsetzeZeile(feld, zeile, '');
+      sbEinfuegen(feld, '\n');
+      return;
+    }
+    const naechste = punkt
+      ? punkt[1] + (Number(punkt[2]) + 1) + punkt[3] + punkt[4]
+      : strich[1] + strich[2] + strich[3];
+    sbEinfuegen(feld, '\n' + naechste);
+    return;
+  }
+
+  // Rücktaste direkt hinter einer frisch gesetzten, noch leeren Marke
+  if (e.key === 'Backspace' && (punkt || strich)) {
+    const inhalt = punkt ? punkt[5] : strich[4];
+    if (!inhalt) {
+      e.preventDefault();
+      sbErsetzeZeile(feld, zeile, '');
+      return;
+    }
+  }
+}
+
+function sbEinfuegen(feld, text) {
+  const a = feld.selectionStart;
+  const b = feld.selectionEnd;
+  feld.value = feld.value.slice(0, a) + text + feld.value.slice(b);
+  feld.selectionStart = feld.selectionEnd = a + text.length;
+  feld.dispatchEvent(new Event('input'));
+}
+
+/* Die aktuelle Zeile vor dem Cursor durch etwas anderes ersetzen. */
+function sbErsetzeZeile(feld, zeile, neu) {
+  const a = feld.selectionStart;
+  const start = a - zeile.length;
+  feld.value = feld.value.slice(0, start) + neu + feld.value.slice(a);
+  feld.selectionStart = feld.selectionEnd = start + neu.length;
+  feld.dispatchEvent(new Event('input'));
+}
+
+function sbVorgabenStand() {
+  const gefuellt = SB_VORGABEN.filter(function (f) { return String(sbVorgaben[f.key] || '').trim(); }).length;
+  const el = document.getElementById('sb-vorgaben-stand');
+  if (el) el.textContent = gefuellt + ' von ' + SB_VORGABEN.length + ' ausgefüllt';
+}
+
+function sbVorgabenUmschalten() {
+  const felder = document.getElementById('sb-vorgaben-felder');
+  const auf = felder.hidden;
+  felder.hidden = !auf;
+  document.getElementById('btn-sb-vorgaben').textContent = auf ? 'Einklappen' : 'Ausklappen';
+}
+
+function sbFelderBauen() {
+  const wrap = document.getElementById('sb-vorgaben-felder');
+  if (wrap.dataset.fertig) return;
+  wrap.innerHTML = SB_VORGABEN.map(function (f) {
+    const wert = esc(sbVorgaben[f.key] || '');
+    return '<div class="gen-field">' +
+      '<label for="sbv-' + f.key + '">' + esc(f.label) + '</label>' +
+      (f.lang
+        ? '<textarea id="sbv-' + f.key + '" style="min-height:70px">' + wert + '</textarea>'
+        : '<input type="text" id="sbv-' + f.key + '" value="' + wert + '" autocomplete="off">') +
+      (f.hinweis ? '<div class="gen-note">' + esc(f.hinweis) + '</div>' : '') +
+    '</div>';
+  }).join('');
+  SB_VORGABEN.forEach(function (f) {
+    const el = document.getElementById('sbv-' + f.key);
+    el.addEventListener('input', function () {
+      sbVorgaben[f.key] = el.value;
+      sbVorgabenStand();
+      sbSichern();
+    });
+  });
+  wrap.dataset.fertig = '1';
+  sbVorgabenStand();
+  // Immer eingeklappt starten. Zehn Felder vor dem Chat bedeuten, dass man
+  // erst scrollen muss, um das zu sehen, worum es geht — das Gespräch. Der
+  // Zähler in der Kopfzeile sagt, dass hier noch etwas liegt.
+  wrap.hidden = true;
+  document.getElementById('btn-sb-vorgaben').textContent = 'Ausklappen';
+}
+
+function sbRendern() {
+  const box = document.getElementById('sb-verlauf');
+  if (!sbVerlauf.length) {
+    box.innerHTML = '<div class="empty-note">Beschreib kurz, worum es geht – Anlass, Publikum, Kernbotschaft. ' +
+      'Claude fragt nach, was fehlt, und baut daraus Folie für Folie die Keynote-Matrix.</div>';
+  } else {
+    box.innerHTML = sbVerlauf.map(function (n) {
+      const ich = n.rolle !== 'claude';
+      let inhalt;
+      if (ich) {
+        inhalt = '<div class="md"><p>' + esc(n.text).replace(/\n/g, '<br>') + '</p></div>';
+      } else if (n.laeuft && !n.text) {
+        // Noch kein Wort da: Stern pulst, bis das erste Zeichen kommt
+        inhalt = '<div class="sb-denkt"><span class="sb-stern">&#10033;</span> denkt nach …</div>';
+      } else {
+        inhalt = '<div class="md">' + mdZuHtml(n.text) +
+          (n.laeuft ? '<span class="sb-marke"></span>' : '') + '</div>';
+      }
+      return '<div class="sb-nachricht' + (ich ? ' ich' : '') + '">' +
+        '<div class="sb-blase">' +
+          '<div class="sb-rolle">' + (ich ? 'Du' : 'Claude') + '</div>' +
+          inhalt +
+        '</div></div>';
+    }).join('');
+  }
+  box.scrollTop = box.scrollHeight;
+  document.getElementById('btn-sb-uebernehmen').hidden = !sbFertigesStoryboard();
+}
+
+/* Die fertige Matrix erkennt man an der Zeile, um die der Auftrag ausdrücklich
+   bittet. Ohne sie ist das Gespräch noch im Gange. */
+function sbFertigesStoryboard() {
+  for (let i = sbVerlauf.length - 1; i >= 0; i--) {
+    const n = sbVerlauf[i];
+    if (n.rolle === 'claude' && !n.laeuft && /^#\s*Keynote-Matrix/m.test(n.text)) return n.text;
+  }
+  return null;
+}
+
+/* Neu zeichnen, aber nicht bei jedem Zeichen: Markdown wird je Durchgang
+   komplett neu gebaut, und ein Strom liefert viele kleine Stücke. */
+let sbZeichenTimer = null;
+function sbRendernGedrosselt() {
+  if (sbZeichenTimer) return;
+  sbZeichenTimer = setTimeout(function () { sbZeichenTimer = null; sbRendern(); }, 90);
+}
+
+async function sbSenden() {
+  if (sbLaeuft) return;
+  const feld = document.getElementById('sb-text');
+  const text = feld.value.trim();
+  const err = document.getElementById('sb-error');
+  err.hidden = true;
+  if (text.length < 2) return;
+
+  sbVerlauf.push({ rolle: 'nutzer', text: text });
+  // Der Platzhalter steht sofort da und fuellt sich dann Stueck fuer Stueck.
+  const antwort = { rolle: 'claude', text: '', laeuft: true };
+  sbVerlauf.push(antwort);
+  feld.value = '';
+  sbLaeuft = true;
+  document.getElementById('btn-sb-senden').disabled = true;
+  sbRendern();
+
+  // Der Verlauf fuer das Modell: ohne den leeren Platzhalter.
+  const verlauf = sbVerlauf.filter(function (n) { return !n.laeuft; });
+
+  try {
+    await kkStrom('/komkom-storyboard',
+      { aktion: 'chat', verlauf: verlauf, vorgaben: sbVorgaben, stream: true },
+      function (stueck) { antwort.text += stueck; sbRendernGedrosselt(); },
+      function (fertig) { if (fertig && fertig.trim()) antwort.text = fertig; });
+    if (!antwort.text.trim()) antwort.text = '(leere Antwort)';
+  } catch (e) {
+    if (!antwort.text.trim()) {
+      sbVerlauf.splice(sbVerlauf.indexOf(antwort), 1);
+    }
+    err.textContent = 'Keine Antwort: ' + e.message;
+    err.hidden = false;
+  } finally {
+    antwort.laeuft = false;
+    sbLaeuft = false;
+    document.getElementById('btn-sb-senden').disabled = false;
+    if (sbZeichenTimer) { clearTimeout(sbZeichenTimer); sbZeichenTimer = null; }
+    sbRendern();
+    sbSichern();
+  }
+}
+
+/* Antwort mitlesen, statt sie am Stueck abzuholen.
+   Die Function schickt Server-Sent Events durch; jede Zeile `data: {…}` ist
+   entweder ein Stueck Text, das Ende oder ein Fehler. */
+async function kkStrom(pfad, nutzlast, aufStueck, aufEnde) {
+  const headers = await kkAuthHeaders();
+  const res = await fetch(KK_FN_BASE + pfad, {
+    method: 'POST', headers: headers, body: JSON.stringify(nutzlast)
+  });
+  if (!res.ok || !res.body) {
+    let msg = 'HTTP ' + res.status;
+    try { const b = await res.json(); if (b && b.error) msg = b.error; } catch (e) { /* egal */ }
+    throw new Error(msg);
+  }
+  const leser = res.body.getReader();
+  const dekoder = new TextDecoder();
+  let puffer = '';
+  let fehler = null;
+  while (true) {
+    const { done, value } = await leser.read();
+    if (done) break;
+    puffer += dekoder.decode(value, { stream: true });
+    let schnitt;
+    while ((schnitt = puffer.indexOf('\n\n')) !== -1) {
+      const roh = puffer.slice(0, schnitt).trim();
+      puffer = puffer.slice(schnitt + 2);
+      if (roh.indexOf('data:') !== 0) continue;
+      let d;
+      try { d = JSON.parse(roh.slice(5).trim()); } catch (e) { continue; }
+      if (d.delta) aufStueck(d.delta);
+      if (d.fehler) fehler = d.fehler;
+      if (d.fertig) aufEnde(d.antwort);
+    }
+  }
+  if (fehler) throw new Error(fehler);
+}
+
+function sbUebernehmen() {
+  const matrix = sbFertigesStoryboard();
+  if (!matrix) return;
+  document.getElementById('gen-text').value = matrix;
+  genDateiEntfernen();
+  genToast('Storyboard übernommen – jetzt prüfen oder direkt erzeugen.');
+  location.hash = '#neu';
+}
+
+/* ---------- Prüfung ---------- */
+let pruefPlan = null;
+let pruefSchalter = {};
+let pruefVorgabenText = '';
+
+/* Text für die Prüfung: aus dem Eingabefeld, bei .md/.txt auch aus der Datei.
+   .docx und .xlsx werden erst im Container umgewandelt — die kann der Browser
+   nicht lesen, und ein halbes Ergebnis wäre schlechter als eine klare Ansage. */
+function pruefTextHolen() {
+  const text = document.getElementById('gen-text').value.trim();
+  if (!genDatei) return Promise.resolve(text);
+  if (!/\.(md|txt)$/i.test(genDatei.name)) {
+    return Promise.reject(new Error(
+      'Die Datei ' + genDatei.name + ' lässt sich vorab nicht lesen – .docx und .xlsx werden erst im Lauf umgewandelt. ' +
+      'Zum Prüfen den Text ins Feld einfügen oder ohne Prüfung erzeugen.'));
+  }
+  return genDatei.text().then(function (t) {
+    return (t.trim() + (text ? '\n\n---\nZusatzwunsch:\n' + text : '')).trim();
+  });
+}
+
+async function pruefStarten() {
+  let text;
+  try {
+    text = await pruefTextHolen();
+  } catch (e) {
+    // .docx und .xlsx kann der Browser nicht lesen. Die Prüfung entfällt dann,
+    // der Auftrag aber nicht — sonst säße man mit einer Matrix da, die sich
+    // nicht erzeugen lässt.
+    genToast(e.message);
+    genCreateJob();
+    return;
+  }
+  if (!text || text.length < 20) { genToast('Zum Prüfen fehlt der Storyboard-Text.'); return; }
+
+  genShowView('view-pruefung');
+  kkSetBreadcrumb([{ label: 'PPTX-Generator', href: 'generator.html' }, { label: 'Storyboard geprüft' }]);
+  document.getElementById('pruef-zahl').textContent = 'wird gelesen …';
+  document.getElementById('pruef-folien').innerHTML =
+    '<div class="gen-loader"><div class="gen-spinner"></div><p>Der Generator liest das Storyboard – das dauert einen Moment.</p></div>';
+  document.getElementById('pruef-hinweise').innerHTML = '';
+  document.getElementById('btn-pruef-erzeugen').disabled = true;
+
+  try {
+    const resp = await kkApi('/komkom-storyboard', {
+      method: 'POST',
+      body: JSON.stringify({ aktion: 'pruefen', text: text })
+    });
+    pruefPlan = resp.plan || {};
+    pruefSchalter = {};
+    (pruefPlan.folien || []).forEach(function (f) {
+      pruefSchalter[f.nr] = {
+        bild: !!(f.bild && f.bild.vorgesehen),
+        diagramm: !!(f.diagramm && f.diagramm.vorgesehen)
+      };
+    });
+    pruefRendern(resp.bildLage || {});
+  } catch (e) {
+    document.getElementById('pruef-zahl').textContent = '';
+    document.getElementById('pruef-folien').innerHTML =
+      '<div class="gen-error">Prüfung fehlgeschlagen: ' + esc(e.message) + '</div>';
+  }
+}
+
+function pruefRendern(bildLage) {
+  const folien = (pruefPlan && pruefPlan.folien) || [];
+  document.getElementById('pruef-zahl').textContent =
+    folien.length + ' Folien' + (pruefPlan.titel ? ' · ' + pruefPlan.titel : '');
+  document.getElementById('btn-pruef-erzeugen').disabled = folien.length === 0;
+
+  const hinweise = (pruefPlan.hinweise || []).slice();
+  if (bildLage && bildLage.refCount === 0) {
+    hinweise.unshift('Die Referenzbibliothek des Bildstils ist leer – solange dort kein Anker liegt, ' +
+      'entsteht auf keiner Folie ein erzeugtes Bild, unabhängig von den Schaltern hier.');
+  }
+  document.getElementById('pruef-hinweise').innerHTML = hinweise.length
+    ? '<div class="pruef-hinweis"><b>Was auffällt</b><ul>' +
+      hinweise.map(function (h) { return '<li>' + esc(h) + '</li>'; }).join('') + '</ul></div>'
+    : '';
+
+  const schalter = function (nr, art, wort, an, zusatz) {
+    return '<label class="schalter">' +
+      '<input type="checkbox"' + (an ? ' checked' : '') +
+        ' onchange="pruefSchalten(' + Number(nr) + ', \'' + art + '\', this.checked)">' +
+      '<span class="bahn"></span>' +
+      '<span class="wort">' + wort + (zusatz ? ' <span>· ' + esc(zusatz) + '</span>' : '') + '</span>' +
+    '</label>';
+  };
+
+  document.getElementById('pruef-folien').innerHTML = folien.map(function (f) {
+    const sch = pruefSchalter[f.nr] || { bild: false, diagramm: false };
+    const feld = function (label, wert) {
+      return wert ? '<div class="pruef-feld"><b>' + label + ':</b> ' + esc(wert) + '</div>' : '';
+    };
+    const bildGrund = (f.bild && (f.bild.motiv || f.bild.grund)) || '';
+    const diaGrund = (f.diagramm && (f.diagramm.baustein || f.diagramm.gewuenscht)) || '';
+    return '<div class="pruef-folie">' +
+      '<div class="pruef-kopf">' +
+        '<span class="folie-no">FOLIE ' + esc(f.nr) + '</span>' +
+        (pruefAktName(f.akt) ? '<span class="badge badge-gray">' + esc(pruefAktName(f.akt)) + '</span>' : '') +
+        '<span class="badge badge-orange">' + esc(f.archetyp || '—') + '</span>' +
+        '<span class="pruef-headline">' + esc(f.headline || '') + '</span>' +
+      '</div>' +
+      feld('Inhalt', f.inhalt) +
+      feld('Pointe', f.pointe) +
+      feld('Belege', f.evidenz) +
+      feld('Interaktion', f.interaktion) +
+      feld('Übergang', f.uebergang) +
+      '<div class="pruef-schalter">' +
+        schalter(f.nr, 'bild', 'Bild', sch.bild, bildGrund) +
+        schalter(f.nr, 'diagramm', 'Grafik', sch.diagramm, diaGrund) +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+/* „A · Der Befund" wird zu „Der Befund". Der Buchstabe ist Zählung aus der
+   Matrix, kein Name — auf der Folie steht später ohnehin nur der Aktname. */
+function pruefAktName(akt) {
+  return String(akt || '')
+    .replace(/^\s*(akt\s+)?[A-Za-z0-9]{1,2}\s*[·.:)\-–—]\s*/i, '')
+    .trim();
+}
+
+function pruefSchalten(nr, art, an) {
+  if (!pruefSchalter[nr]) pruefSchalter[nr] = { bild: false, diagramm: false };
+  pruefSchalter[nr][art] = !!an;
+}
+
+/* Abweichungen von der gelesenen Fassung als Klartext-Auftrag. Die Folie wird
+   über Nummer UND Headline benannt: der Erzeugungslauf liest die Matrix neu,
+   und nur die Headline ist dabei verlässlich dieselbe. */
+function pruefVorgabenBlock() {
+  if (!pruefPlan || !pruefPlan.folien) return '';
+  const zeilen = [];
+  pruefPlan.folien.forEach(function (f) {
+    const sch = pruefSchalter[f.nr] || {};
+    const warBild = !!(f.bild && f.bild.vorgesehen);
+    const warDia = !!(f.diagramm && f.diagramm.vorgesehen);
+    const name = 'Folie ' + f.nr + ' „' + (f.headline || '') + '“';
+    if (sch.bild !== warBild) {
+      zeilen.push('- ' + name + ': ' + (sch.bild
+        ? 'Bild erzeugen, auch wenn der Archetyp sonst keines vorsieht.'
+        : 'KEIN Bild erzeugen – diese Folie bleibt ohne Bild.'));
+    }
+    if (sch.diagramm !== warDia) {
+      zeilen.push('- ' + name + ': ' + (sch.diagramm
+        ? 'Grafik/Diagramm bauen.'
+        : 'KEINE Grafik – den Inhalt ohne Diagramm darstellen.'));
+    }
+  });
+  if (!zeilen.length) return '';
+  return '\n\n---\nBILD- UND GRAFIKVORGABEN (in der Prüfung gesetzt; sie haben Vorrang vor der Tabelle ' +
+    '„Wann eine Folie ein Bild bekommt“ in references/MATRIX.md):\n' + zeilen.join('\n') +
+    '\nAlle übrigen Folien wie üblich nach MATRIX.md.';
+}
+
+function pruefErzeugen() {
+  pruefVorgabenText = pruefVorgabenBlock();
+  genCreateJob();
+}
+
+/* ============================================================
    Erstellung: Auftrag anlegen -> direkt in den Loader wechseln
    ============================================================ */
 /* Keynote-Matrix als Datei. Läuft wie der Import: Job anlegen + signierte
@@ -1380,7 +2154,9 @@ async function genCreateJob() {
   const btn = document.getElementById('btn-generate');
   errEl.hidden = true;
 
-  const inputText = textEl.value.trim();
+  // Was in der Prüfung umgeschaltet wurde, hängt als Klartext-Auftrag hinten
+  // dran. Leer, wenn nicht geprüft oder nichts geändert wurde.
+  const inputText = (textEl.value.trim() + pruefVorgabenText).trim();
   const title = titleEl.value.trim();
   const model = document.getElementById('gen-model').value || undefined;
   // Ohne Matrix ist der Text die einzige Eingabe; mit Matrix nur Zusatzwunsch

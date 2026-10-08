@@ -539,24 +539,27 @@ const KK_EDIT_SCHEMA = {
     scalars: [
       { path: 'liquiditaet.kontostand', label: 'Kontostand (€)', kind: 'num' },
       { path: 'liquiditaet.kontostandDatum', label: 'Kontostand-Datum', kind: 'text' },
-      { path: 'liquiditaet.forecast.minimum', label: 'Liquiditäts-Minimum (€)', kind: 'num' }
+      { path: 'liquiditaet.forecast.minimum', label: 'Liquiditäts-Minimum (€)', kind: 'num',
+        note: 'Der Forecast selbst wird aus Kontostand, erwarteten Rechnungen und Fixkosten berechnet.' }
     ],
     lists: [
       { key: 'jahresvergleich', label: 'Jahresvergleich', note: 'wird automatisch aus den Monatsumsätzen berechnet – hier nur die Vorjahre eintragen.', cols: [
         { k: 'jahr', label: 'Jahr', kind: 'text' }, { k: 'umsatz', label: 'Umsatz', kind: 'num' },
         { k: 'kosten', label: 'Kosten', kind: 'num' }, { k: 'gewinn', label: 'EÜ/Gewinn', kind: 'num' } ] },
       { key: 'offeneRechnungen', label: 'Offene Rechnungen', cols: [
-        { k: 'nr', label: 'Nr.', kind: 'text' }, { k: 'kunde', label: 'Kunde', kind: 'text' },
-        { k: 'betrag', label: 'Betrag', kind: 'num' }, { k: 'datum', label: 'Datum', kind: 'text' },
-        { k: 'faellig', label: 'Fällig', kind: 'text' }, { k: 'tageUeberfaellig', label: 'Tage überf.', kind: 'num' },
+        { k: 'kunde', label: 'Kunde', kind: 'text' }, { k: 'leistung', label: 'Leistung', kind: 'text' },
+        { k: 'betrag', label: 'Betrag', kind: 'num' }, { k: 'umsatzart', label: 'Umsatzart', kind: 'text' },
+        { k: 'faellig', label: 'Fällig', kind: 'monatjahr' },
         { k: 'status', label: 'Status', kind: 'select', options: ['geplant', 'offen', 'bezahlt'], default: 'offen' } ] },
       { key: 'geplanteRechnungen', label: 'Geplante Rechnungen', cols: [
         { k: 'kunde', label: 'Kunde', kind: 'text' }, { k: 'leistung', label: 'Leistung', kind: 'text' },
-        { k: 'betrag', label: 'Betrag', kind: 'num' }, { k: 'geplant', label: 'Geplant zum', kind: 'text' },
+        { k: 'betrag', label: 'Betrag', kind: 'num' }, { k: 'umsatzart', label: 'Umsatzart', kind: 'text' },
+        { k: 'geplant', label: 'Geplant zum', kind: 'monatjahr' },
         { k: 'status', label: 'Status', kind: 'select', options: ['geplant', 'offen', 'bezahlt'], default: 'geplant' } ] },
       { key: 'bezahlteRechnungen', label: 'Bezahlte Rechnungen', cols: [
-        { k: 'nr', label: 'Nr.', kind: 'text' }, { k: 'kunde', label: 'Kunde', kind: 'text' },
+        { k: 'kunde', label: 'Kunde', kind: 'text' },
         { k: 'leistung', label: 'Leistung', kind: 'text' }, { k: 'betrag', label: 'Betrag', kind: 'num' },
+        { k: 'umsatzart', label: 'Umsatzart', kind: 'text' },
         { k: 'bezahltAm', label: 'Bezahlt am', kind: 'text' },
         { k: 'status', label: 'Status', kind: 'select', options: ['geplant', 'offen', 'bezahlt'], default: 'bezahlt' } ] },
       { key: 'fixkosten', label: 'Fixkosten & variable Kosten', cols: [
@@ -566,8 +569,10 @@ const KK_EDIT_SCHEMA = {
     series: [
       { path: 'monatsumsatz2026', label: 'Monatsumsatz 2026', valueKeys: [
         { k: 'umsatz', label: 'Umsatz' }, { k: 'kosten', label: 'Kosten' } ] },
-      { path: 'liquiditaet.forecast', label: 'Liquiditäts-Forecast', valueKeys: [
-        { k: 'werte', label: 'Wert' } ] }
+      /* Der Liquiditäts-Forecast wird seit 08.10.2026 aus Kontostand,
+         erwarteten Rechnungen und Fixkosten gerechnet (siehe finanzen.html)
+         und steht deshalb nicht mehr zum Eintragen hier. Nur das Minimum
+         bleibt eine Vorgabe — es ist eine Entscheidung, keine Rechnung. */
     ]
   },
   teilnehmer: {
@@ -679,18 +684,21 @@ const KK_SAVE_TRANSFORMS = {
     if (!Array.isArray(w.geplanteRechnungen)) w.geplanteRechnungen = [];
     if (!Array.isArray(w.bezahlteRechnungen)) w.bezahlteRechnungen = [];
 
+    /* Beim Wechsel zwischen den drei Listen bleibt alles erhalten, was in
+       beiden Listen vorkommt — sonst verlöre eine Rechnung beim Umbuchen
+       Leistung oder Umsatzart. */
     const toOffen = (r, faellig) => ({
       nr: r.nr || '', kunde: r.kunde || '', betrag: (r.betrag != null ? r.betrag : null),
       datum: r.datum || '', faellig: faellig || '', tageUeberfaellig: 0,
-      leistung: r.leistung || '', status: 'offen'
+      leistung: r.leistung || '', umsatzart: r.umsatzart || '', status: 'offen'
     });
     const toGeplant = (r, geplant) => ({
       kunde: r.kunde || '', leistung: r.leistung || '', betrag: (r.betrag != null ? r.betrag : null),
-      geplant: geplant || '', status: 'geplant'
+      umsatzart: r.umsatzart || '', geplant: geplant || '', status: 'geplant'
     });
     const toBezahlt = (r) => ({
       nr: r.nr || '', kunde: r.kunde || '', leistung: r.leistung || '',
-      betrag: (r.betrag != null ? r.betrag : null),
+      betrag: (r.betrag != null ? r.betrag : null), umsatzart: r.umsatzart || '',
       bezahltAm: r.bezahltAm || kkHeute(), status: 'bezahlt'
     });
 
@@ -777,7 +785,85 @@ function kkGroupInput(raw) {
   return out;
 }
 
+/* Monat und Jahr als zwei kleine Auswahlfelder.
+   Gespeichert wird „MM.JJJJ". Ein Tagesdatum ist bei einer Fälligkeit oder
+   einer Planung Scheingenauigkeit — und das freie Textfeld davor hat genau
+   die Schreibweisen erzeugt, an denen die Quartals-/Jahresauswertung
+   vorbeigelaufen ist (gemeldet am 08.10.2026: Einträge für 2027 und 2028
+   landeten im laufenden Quartal). Gelesen werden weiterhin alle Formate, die
+   im Bestand vorkommen. */
+const KK_MONATE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+  'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+
+function kkMonatJahr(value) {
+  const t = String(value == null ? '' : value).trim();
+  let m = /^(\d{1,2})\.(\d{4})$/.exec(t);                 // MM.JJJJ
+  if (m) return { monat: Number(m[1]), jahr: Number(m[2]) };
+  m = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(t);          // TT.MM.JJJJ
+  if (m) return { monat: Number(m[2]), jahr: Number(m[3]) };
+  m = /^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?$/.exec(t);        // JJJJ-MM(-TT)
+  if (m) return { monat: Number(m[2]), jahr: Number(m[1]) };
+  m = /^(\d{1,2})\/(\d{4})$/.exec(t);                      // MM/JJJJ
+  if (m) return { monat: Number(m[1]), jahr: Number(m[2]) };
+  m = /^(\d{4})$/.exec(t);                                  // nur Jahr
+  if (m) return { monat: 0, jahr: Number(m[1]) };
+  return { monat: 0, jahr: 0 };
+}
+
+function kkMonatJahrFeld(value, onChange) {
+  const stand = kkMonatJahr(value);
+  const wrap = document.createElement('span');
+  wrap.className = 'kk-monatjahr';
+
+  const mSel = document.createElement('select');
+  mSel.className = 'kk-edit-select';
+  mSel.setAttribute('aria-label', 'Monat');
+  const jSel = document.createElement('select');
+  jSel.className = 'kk-edit-select';
+  jSel.setAttribute('aria-label', 'Jahr');
+
+  const leer = (sel, text) => {
+    const o = document.createElement('option');
+    o.value = ''; o.textContent = text;
+    sel.appendChild(o);
+  };
+  leer(mSel, 'Monat');
+  KK_MONATE.forEach((name, i) => {
+    const o = document.createElement('option');
+    o.value = String(i + 1); o.textContent = name;
+    if (stand.monat === i + 1) o.selected = true;
+    mSel.appendChild(o);
+  });
+
+  leer(jSel, 'Jahr');
+  const heuer = new Date().getFullYear();
+  const jahre = [];
+  for (let j = heuer - 2; j <= heuer + 6; j++) jahre.push(j);
+  // Ein Bestandsjahr ausserhalb der Spanne darf nicht stillschweigend
+  // verschwinden, sonst ändert allein das Öffnen des Editors die Daten.
+  if (stand.jahr && jahre.indexOf(stand.jahr) === -1) jahre.push(stand.jahr);
+  jahre.sort((a, b) => a - b).forEach((j) => {
+    const o = document.createElement('option');
+    o.value = String(j); o.textContent = String(j);
+    if (stand.jahr === j) o.selected = true;
+    jSel.appendChild(o);
+  });
+
+  const melden = () => {
+    const mm = mSel.value;
+    const jj = jSel.value;
+    if (!jj) { onChange(''); return; }                  // ohne Jahr kein Datum
+    onChange((mm ? ('0' + mm).slice(-2) : '01') + '.' + jj);
+  };
+  mSel.addEventListener('change', melden);
+  jSel.addEventListener('change', melden);
+  wrap.appendChild(mSel);
+  wrap.appendChild(jSel);
+  return wrap;
+}
+
 function kkInput(kind, value, onChange, def) {
+  if (kind === 'monatjahr') return kkMonatJahrFeld(value, onChange);
   if (kind === 'select') {
     const sel = document.createElement('select');
     sel.className = 'kk-edit-select';
@@ -882,6 +968,12 @@ function kkOpenEditor(modKey, sectionKey) {
       lbl.textContent = f.label;
       field.appendChild(lbl);
       field.appendChild(kkInput(f.kind, kkGetPath(work, f.path), (v) => kkSetPath(work, f.path, v), f));
+      if (f.note) {
+        const hint = document.createElement('div');
+        hint.className = 'edit-note';
+        hint.textContent = f.note;
+        field.appendChild(hint);
+      }
       grid.appendChild(field);
     });
     grp.appendChild(grid);

@@ -17,10 +17,10 @@
 <main class="main">
 
   <!-- KPI-Überblick (Hero) -->
-  <div class="grid grid-5 mb-20" id="kpi-finanzen-hero"></div>
+  <div class="grid grid-4 mb-20" id="kpi-finanzen-hero"></div>
 
   <!-- Jahresvergleich -->
-  <div class="section-head">
+  <div class="section-head" id="abschnitt-jahresvergleich">
     <h2 class="section-title">Jahresvergleich (3 Jahre + laufendes Jahr)</h2>
     <button class="btn btn-sm btn-edit btn-edit-sec" onclick="kkOpenEditor('finanzen','jahresvergleich')">✎ bearbeiten</button>
   </div>
@@ -41,7 +41,7 @@
 
   <!-- Ausstehende Rechnungen -->
   <div class="section-head">
-    <h2 class="section-title">Ausstehende Rechnungssummen</h2>
+    <h2 class="section-title" id="abschnitt-rechnungen">Ausstehende Rechnungssummen</h2>
     <button class="btn btn-sm btn-edit btn-edit-sec" onclick="kkOpenEditor('finanzen','rechnungen')">✎ bearbeiten</button>
   </div>
   <div class="grid grid-2 mb-20">
@@ -52,7 +52,7 @@
       <div class="table-wrap"><table class="kk-table" id="tbl-offene"></table></div>
     </div>
     <div class="card">
-      <div class="card-header">
+      <div class="card-header" id="abschnitt-geplante">
         <h2>Geplante Rechnungen (noch nicht abgerechnet)</h2>
       </div>
       <div class="table-wrap"><table class="kk-table" id="tbl-geplante"></table></div>
@@ -79,7 +79,7 @@
   </div>
   <div class="grid grid-2 mb-20">
     <div class="card">
-      <div class="card-header">
+      <div class="card-header" id="abschnitt-kosten">
         <h2>Fixkosten + variable Kosten (Juni)</h2>
       </div>
       <div class="table-wrap"><table class="kk-table" id="tbl-fixkosten"></table></div>
@@ -87,8 +87,9 @@
 
     <!-- Liquidität -->
     <div class="card">
-      <div class="card-header">
-        <h2>Liquidität & Forecast</h2>
+      <div class="card-header" id="abschnitt-liquiditaet">
+        <h2>Liquidität &amp; Forecast</h2>
+        <div class="kpi-schalter" id="liq-schalter" role="group" aria-label="Zeitraum des Forecasts"></div>
       </div>
       <div class="flex-between mb-20">
         <div>
@@ -98,7 +99,7 @@
         <span class="badge badge-green" id="liq-status"></span>
       </div>
       <div class="chart-box chart-sm"><canvas id="chart-liquiditaet"></canvas></div>
-      <p class="muted" style="margin-top:10px">Forecast über das Jahr: Kontostand + geplante Eingänge − Fixkosten/variable Kosten. Gestrichelte Linie = Minimum-Schwelle.</p>
+      <p class="muted" style="margin-top:10px" id="liq-grundlage"></p>
     </div>
   </div>
 
@@ -119,9 +120,13 @@ const F = KK.finanzen;
    Umsatz/Kosten = Summe der eingetragenen Monatswerte, Gewinn = Umsatz − Kosten.
    So bleibt die YTD-Summe oben immer konsistent mit dem Monatsverlauf. */
 const M = F.monatsumsatz2026 || {};
-const ytdUmsatz = (M.umsatz || []).reduce((s, v) => s + (v || 0), 0);
-const ytdKosten = (M.kosten || []).reduce((s, v) => s + (v || 0), 0);
-const ytdGewinn = ytdUmsatz - ytdKosten;
+/* Auf zwei Nachkommastellen runden: Die Summe von Monatswerten mit
+   Nachkommastellen ergibt in Gleitkomma sonst Zahlen wie 194901.00000000003,
+   und genau die standen dann im Bearbeiten-Fenster. */
+const ytdRund = (v) => Math.round(v * 100) / 100;
+const ytdUmsatz = ytdRund((M.umsatz || []).reduce((s, v) => s + (v || 0), 0));
+const ytdKosten = ytdRund((M.kosten || []).reduce((s, v) => s + (v || 0), 0));
+const ytdGewinn = ytdRund(ytdUmsatz - ytdKosten);
 const ytdRow = F.jahresvergleich[F.jahresvergleich.length - 1];
 if (ytdRow) {
   ytdRow.umsatz = ytdUmsatz;
@@ -131,39 +136,171 @@ if (ytdRow) {
 
 /* KPI-Überblick (Hero) */
 const jAktuell = F.jahresvergleich[F.jahresvergleich.length - 1] || { umsatz: 0, gewinn: 0 };
-/* Offene Rechnungen = offene (versendete) + geplante Rechnungen, im Frontend summiert */
-const sumOffenVersendet = F.offeneRechnungen.reduce((s, r) => s + (r.betrag || 0), 0);
-const sumGeplantHero = F.geplanteRechnungen.reduce((s, r) => s + (r.betrag || 0), 0);
-const sumOffenHero = sumOffenVersendet + sumGeplantHero;
-const anzahlOffenHero = F.offeneRechnungen.length + F.geplanteRechnungen.length;
 const kostenHero = F.fixkosten.reduce((s, k) => s + (k.betrag || 0), 0);
 const liqMin = (F.liquiditaet.forecast && F.liquiditaet.forecast.minimum) || 0;
-document.getElementById('kpi-finanzen-hero').innerHTML = `
-  <div class="kpi ${F.liquiditaet.kontostand >= liqMin ? 'kpi-green' : 'kpi-red'}">
-    <div class="kpi-label">Kontostand</div>
-    <div class="kpi-value">${fmtEUR(F.liquiditaet.kontostand)}</div>
-    <div class="kpi-sub">Stand ${F.liquiditaet.kontostandDatum}</div>
-  </div>
-  <div class="kpi">
-    <div class="kpi-label">Umsatz (${jAktuell.jahr || 'YTD'})</div>
-    <div class="kpi-value">${fmtEUR(ytdUmsatz)}</div>
-    <div class="kpi-sub">Summe der eingetragenen Monate</div>
-  </div>
-  <div class="kpi kpi-green">
-    <div class="kpi-label">EÜ / Gewinn</div>
-    <div class="kpi-value">${fmtEUR(ytdGewinn)}</div>
-    <div class="kpi-sub">${ytdUmsatz ? 'Marge ' + fmtPct(ytdGewinn / ytdUmsatz * 100) : '—'}</div>
-  </div>
-  <div class="kpi kpi-yellow">
-    <div class="kpi-label">Offene + geplante Rechnungen</div>
-    <div class="kpi-value">${fmtEUR(sumOffenHero)}</div>
-    <div class="kpi-sub">voraussichtl. Einnahmen · ${anzahlOffenHero} Rechnungen (offen + geplant)</div>
-  </div>
-  <div class="kpi kpi-red">
-    <div class="kpi-label">Anstehende Kosten</div>
-    <div class="kpi-value">${fmtEUR(kostenHero)}</div>
-    <div class="kpi-sub">fix + variabel / Monat</div>
-  </div>`;
+
+/* ------------------------------------------------------------------
+   Rechnungen nach Zeitraum teilen.
+
+   Maßgeblich ist, wann das Geld erwartet wird: bei offenen (versendeten)
+   Rechnungen das Fälligkeitsdatum, bei geplanten das geplante Datum. Die
+   Grenze ist umschaltbar — bis Quartalsende oder bis Jahresende. Was danach
+   liegt, steht im zweiten Feld.
+
+   Hinweis zum vierten Quartal: dort fallen Quartals- und Jahresende auf
+   denselben Tag (31.12.). Der Schalter ändert dann nichts, und das ist
+   richtig so — eine erfundene Abgrenzung wäre schlechter als keine.
+   ------------------------------------------------------------------ */
+const finRechnungen = [
+  ...F.offeneRechnungen.map(r => ({ betrag: r.betrag || 0, datum: r.faellig || r.datum, art: 'offen' })),
+  ...F.geplanteRechnungen.map(r => ({ betrag: r.betrag || 0, datum: r.geplant, art: 'geplant' }))
+];
+
+/* Ein Datum aus allem lesen, was im Bestand vorkommt: „MM.JJJJ" (neue
+   Monatsauswahl), „TT.MM.JJJJ" (alte Freitexte), „JJJJ-MM-TT", „MM/JJJJ" und
+   das nackte Jahr. Gemeldet am 08.10.2026: Einträge für 2027 und 2028 standen
+   im laufenden Quartal, weil nur TT.MM.JJJJ erkannt wurde und alles andere in
+   den nahen Topf fiel.
+   Gerechnet wird mit dem LETZTEN Tag des Monats — eine Rechnung, die im
+   März fällig ist, ist bis Ende März erwartet, nicht am 1. */
+function finDatum(text) {
+  const t = String(text == null ? '' : text).trim();
+  let j = null, mo = null, tag = null;
+  let m;
+  if ((m = /^(\d{1,2})\.(\d{4})$/.exec(t)))            { mo = +m[1]; j = +m[2]; }
+  else if ((m = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(t))) { tag = +m[1]; mo = +m[2]; j = +m[3]; }
+  else if ((m = /^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?$/.exec(t))) { j = +m[1]; mo = +m[2]; tag = m[3] ? +m[3] : null; }
+  else if ((m = /^(\d{1,2})\/(\d{4})$/.exec(t)))        { mo = +m[1]; j = +m[2]; }
+  else if ((m = /^(\d{4})$/.exec(t)))                   { j = +m[1]; mo = 12; }
+  if (!j) return null;
+  if (!mo || mo < 1 || mo > 12) mo = 12;
+  return tag ? new Date(j, mo - 1, tag) : new Date(j, mo, 0);
+}
+
+/* „MM.JJJJ" lesbar machen: 03.2027 -> „März 2027". Tagesdaten bleiben, wie
+   sie sind — sie stammen aus der Zeit vor der Monatsauswahl. */
+const FIN_MONATE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+  'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
+function finZeige(text) {
+  const t = String(text == null ? '' : text).trim();
+  const m = /^(\d{1,2})\.(\d{4})$/.exec(t);
+  if (!m) return t || '–';
+  const i = Number(m[1]) - 1;
+  return (FIN_MONATE[i] || m[1]) + ' ' + m[2];
+}
+function finTag(d) {
+  return String(d.getDate()).padStart(2, '0') + '.' +
+         String(d.getMonth() + 1).padStart(2, '0') + '.' + d.getFullYear();
+}
+
+/* Letzter Tag des laufenden Quartals bzw. des laufenden Jahres */
+function finGrenze(zeitraum) {
+  const heute = new Date();
+  if (zeitraum === 'jahr') return new Date(heute.getFullYear(), 11, 31);
+  const quartalsEndMonat = Math.floor(heute.getMonth() / 3) * 3 + 2;
+  return new Date(heute.getFullYear(), quartalsEndMonat + 1, 0);
+}
+
+let finZeitraum = 'quartal';
+try {
+  const gemerkt = localStorage.getItem('kk-fin-zeitraum');
+  if (gemerkt === 'quartal' || gemerkt === 'jahr') finZeitraum = gemerkt;
+} catch (e) { /* privater Modus – dann eben die Vorgabe */ }
+
+function finSetzeZeitraum(z) {
+  finZeitraum = z;
+  try { localStorage.setItem('kk-fin-zeitraum', z); } catch (e) { /* egal */ }
+  finZeichneHero();
+}
+
+function finZeichneHero() {
+  const grenze = finGrenze(finZeitraum);
+  const bis = [];
+  const danach = [];
+  finRechnungen.forEach(r => {
+    const d = finDatum(r.datum);
+    // Ohne lesbares Datum lieber in den nahen Topf: eine Rechnung, die man
+    // übersieht, ist schlimmer als eine, die zu früh erwartet wird.
+    (!d || d <= grenze ? bis : danach).push(r);
+  });
+  const summe = liste => liste.reduce((s, r) => s + r.betrag, 0);
+  const abTag = new Date(grenze.getTime() + 86400000);
+
+  document.getElementById('kpi-finanzen-hero').innerHTML = `
+    <div class="kpi ${F.liquiditaet.kontostand >= liqMin ? 'kpi-green' : 'kpi-red'}" data-ziel="abschnitt-liquiditaet">
+      <div class="kpi-label">Kontostand</div>
+      <div class="kpi-value">${fmtEUR(F.liquiditaet.kontostand)}</div>
+      <div class="kpi-sub">Stand ${F.liquiditaet.kontostandDatum}</div>
+    </div>
+    <div class="kpi" data-ziel="abschnitt-jahresvergleich">
+      <div class="kpi-label">Umsatz (${jAktuell.jahr || 'YTD'})</div>
+      <div class="kpi-value">${fmtEUR(ytdUmsatz)}</div>
+      <div class="kpi-sub">Summe der eingetragenen Monate</div>
+    </div>
+    <div class="kpi kpi-green" data-ziel="abschnitt-jahresvergleich">
+      <div class="kpi-label">EÜ / Gewinn</div>
+      <div class="kpi-value">${fmtEUR(ytdGewinn)}</div>
+      <div class="kpi-sub">${ytdUmsatz ? 'Marge ' + fmtPct(ytdGewinn / ytdUmsatz * 100) : '—'}</div>
+    </div>
+    <div class="kpi kpi-red" data-ziel="abschnitt-kosten">
+      <div class="kpi-label">Anstehende Kosten</div>
+      <div class="kpi-value">${fmtEUR(kostenHero)}</div>
+      <div class="kpi-sub">fix + variabel / Monat</div>
+    </div>
+
+    <div class="kpi kpi-yellow kpi-breit" data-ziel="abschnitt-rechnungen">
+      <div class="kpi-kopf">
+        <div class="kpi-label">Offene + geplante Rechnungen</div>
+        <div class="kpi-schalter" role="group" aria-label="Zeitraum der Rechnungen">
+          <button type="button" data-zeitraum="quartal" aria-pressed="${finZeitraum === 'quartal'}"
+            class="${finZeitraum === 'quartal' ? 'an' : ''}">Quartal</button>
+          <button type="button" data-zeitraum="jahr" aria-pressed="${finZeitraum === 'jahr'}"
+            class="${finZeitraum === 'jahr' ? 'an' : ''}">Jahr</button>
+        </div>
+      </div>
+      <div class="kpi-value">${fmtEUR(summe(bis))}</div>
+      <div class="kpi-sub">
+        voraussichtliche Einnahmen · ${bis.length} ${bis.length === 1 ? 'Rechnung' : 'Rechnungen'} (offen + geplant)
+        <span class="kpi-zeitraum">Fällig oder geplant bis ${finTag(grenze)}
+          (${finZeitraum === 'quartal' ? 'Ende des laufenden Quartals' : 'Ende des laufenden Jahres'})</span>
+      </div>
+    </div>
+
+    <div class="kpi kpi-breit" data-ziel="abschnitt-geplante">
+      <div class="kpi-kopf"><div class="kpi-label">Spätere Rechnungen</div></div>
+      <div class="kpi-value">${fmtEUR(summe(danach))}</div>
+      <div class="kpi-sub">
+        ${danach.length ? danach.length + (danach.length === 1 ? ' Rechnung' : ' Rechnungen') + ' (offen + geplant)' : 'derzeit keine'}
+        <span class="kpi-zeitraum">Fällig oder geplant ab ${finTag(abTag)}
+          (${finZeitraum === 'quartal' ? 'ab dem nächsten Quartal' : 'ab dem nächsten Jahr'})</span>
+      </div>
+    </div>`;
+
+  // Zuhörer statt onclick-Attribut: Das Skript dieser Seite läuft in kkBoot(),
+  // seine Funktionen sind also NICHT global — ein Attribut-Handler fände
+  // finSetzeZeitraum nicht und bliebe wirkungslos.
+  document.querySelectorAll('#kpi-finanzen-hero .kpi-schalter button').forEach(b => {
+    b.addEventListener('click', () => finSetzeZeitraum(b.dataset.zeitraum));
+  });
+
+  // Jede Kennzahl führt zu ihrem Abschnitt — ausser dem Schalter, der in
+  // einer der Karten sitzt und nicht zusätzlich springen soll.
+  document.querySelectorAll('#kpi-finanzen-hero .kpi[data-ziel]').forEach(k => {
+    const ziel = document.getElementById(k.dataset.ziel);
+    if (!ziel) return;
+    k.classList.add('kpi-klickbar');
+    k.tabIndex = 0;
+    k.setAttribute('role', 'link');
+    k.title = 'Zum Abschnitt springen';
+    const hin = (e) => {
+      if (e.target.closest('.kpi-schalter')) return;
+      ziel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+    k.addEventListener('click', hin);
+    k.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); hin(e); } });
+  });
+}
+finZeichneHero();
 
 /* Jahresvergleich Chart + Tabelle */
 new Chart(document.getElementById('chart-jahresvergleich'), {
@@ -205,40 +342,49 @@ new Chart(document.getElementById('chart-monate'), {
 
 /* Offene Rechnungen */
 const sumOffen = F.offeneRechnungen.reduce((s, r) => s + r.betrag, 0);
+/* Überfällig heisst jetzt: der Fälligkeitsmonat ist vorbei. Das gespeicherte
+   Feld „Tage überfällig" gibt es nicht mehr — es musste von Hand gepflegt
+   werden und war damit immer einen Tag zu alt. */
+const finHeute = new Date();
 document.getElementById('tbl-offene').innerHTML =
-  '<thead><tr><th>Nr.</th><th>Kunde</th><th class="num">Betrag</th><th>Fällig</th><th>Status</th></tr></thead><tbody>' +
-  F.offeneRechnungen.map(r => `<tr>
-    <td>${r.nr}</td>
-    <td><strong>${r.kunde}</strong><br><span class="muted">Rechnungsdatum ${r.datum}</span></td>
+  '<thead><tr><th>Kunde / Leistung</th><th class="num">Betrag</th><th>Umsatzart</th><th>Fällig</th><th>Status</th></tr></thead><tbody>' +
+  F.offeneRechnungen.map(r => {
+    const d = finDatum(r.faellig || r.datum);
+    const ueberfaellig = d && d < finHeute;
+    return `<tr>
+    <td><strong>${r.kunde || '–'}</strong>${r.leistung ? '<br><span class="muted">' + r.leistung + '</span>' : ''}</td>
     <td class="num">${fmtEUR(r.betrag)}</td>
-    <td>${r.faellig}</td>
-    <td>${r.tageUeberfaellig > 0
-      ? '<span class="badge badge-red">' + r.tageUeberfaellig + ' Tage überfällig</span>'
+    <td>${r.umsatzart || '–'}</td>
+    <td>${finZeige(r.faellig || r.datum)}</td>
+    <td>${ueberfaellig
+      ? '<span class="badge badge-red">überfällig</span>'
       : '<span class="badge badge-green">im Rahmen</span>'}</td>
-  </tr>`).join('') +
-  `</tbody><tfoot><tr><td colspan="2">Summe offen</td><td class="num">${fmtEUR(sumOffen)}</td><td colspan="2">${F.offeneRechnungen.length} Rechnungen</td></tr></tfoot>`;
+  </tr>`;
+  }).join('') +
+  `</tbody><tfoot><tr><td>Summe offen</td><td class="num">${fmtEUR(sumOffen)}</td><td colspan="3">${F.offeneRechnungen.length} Rechnungen</td></tr></tfoot>`;
 
 /* Geplante Rechnungen */
 const sumGeplant = F.geplanteRechnungen.reduce((s, r) => s + r.betrag, 0);
 document.getElementById('tbl-geplante').innerHTML =
-  '<thead><tr><th>Kunde / Leistung</th><th class="num">Betrag</th><th>Geplant zum</th></tr></thead><tbody>' +
+  '<thead><tr><th>Kunde / Leistung</th><th class="num">Betrag</th><th>Umsatzart</th><th>Geplant zum</th></tr></thead><tbody>' +
   F.geplanteRechnungen.map(r => `<tr>
-    <td><strong>${r.kunde}</strong><br><span class="muted">${r.leistung}</span></td>
+    <td><strong>${r.kunde || '–'}</strong>${r.leistung ? '<br><span class="muted">' + r.leistung + '</span>' : ''}</td>
     <td class="num">${fmtEUR(r.betrag)}</td>
-    <td>${r.geplant}</td>
+    <td>${r.umsatzart || '–'}</td>
+    <td>${finZeige(r.geplant)}</td>
   </tr>`).join('') +
-  `</tbody><tfoot><tr><td>Summe geplant</td><td class="num">${fmtEUR(sumGeplant)}</td><td>${F.geplanteRechnungen.length} Positionen</td></tr></tfoot>`;
+  `</tbody><tfoot><tr><td>Summe geplant</td><td class="num">${fmtEUR(sumGeplant)}</td><td colspan="2">${F.geplanteRechnungen.length} Positionen</td></tr></tfoot>`;
 
 /* Bezahlte Rechnungen */
 const bezahlte = Array.isArray(F.bezahlteRechnungen) ? F.bezahlteRechnungen : [];
 const sumBezahlt = bezahlte.reduce((s, r) => s + (r.betrag || 0), 0);
 document.getElementById('tbl-bezahlte').innerHTML = bezahlte.length
-  ? '<thead><tr><th>Nr.</th><th>Kunde / Leistung</th><th class="num">Betrag</th><th>Bezahlt am</th><th>Status</th></tr></thead><tbody>' +
+  ? '<thead><tr><th>Kunde / Leistung</th><th class="num">Betrag</th><th>Umsatzart</th><th>Bezahlt am</th><th>Status</th></tr></thead><tbody>' +
     bezahlte.map(r => `<tr>
-      <td>${r.nr || '–'}</td>
       <td><strong>${r.kunde || '–'}</strong>${r.leistung ? '<br><span class="muted">' + r.leistung + '</span>' : ''}</td>
       <td class="num">${fmtEUR(r.betrag)}</td>
-      <td>${r.bezahltAm || '–'}</td>
+      <td>${r.umsatzart || '–'}</td>
+      <td>${finZeige(r.bezahltAm)}</td>
       <td><span class="badge badge-green">bezahlt</span></td>
     </tr>`).join('') +
     `</tbody><tfoot><tr><td colspan="2">Summe bezahlt</td><td class="num">${fmtEUR(sumBezahlt)}</td><td colspan="2">${bezahlte.length} Rechnungen</td></tr></tfoot>`
@@ -262,19 +408,128 @@ document.getElementById('tbl-fixkosten').innerHTML =
   </tfoot>`;
 
 /* Liquidität */
+/* ------------------------------------------------------------------
+   Liquiditäts-Forecast — gerechnet statt eingetragen (08.10.2026).
+
+   Startpunkt ist der Kontostand. Für jeden der nächsten Monate kommt
+   dazu, was in dem Monat erwartet wird (offene und geplante Rechnungen),
+   und es geht ab, was monatlich an Kosten anfällt. Gezeigt wird der Stand
+   am MONATSENDE.
+
+   Was vor dem heutigen Monat fällig war und noch offen ist, zählt in den
+   ersten Monat: es ist nicht verschwunden, es ist überfällig.
+   ------------------------------------------------------------------ */
+const FIN_MONATE_KURZ = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+const FIN_FENSTER = [6, 12, 24];
+
+let finMonate = 12;
+try {
+  const gemerkt = Number(localStorage.getItem('kk-fin-forecast-monate'));
+  if (FIN_FENSTER.indexOf(gemerkt) !== -1) finMonate = gemerkt;
+} catch (e) { /* privater Modus – dann eben die Vorgabe */ }
+
+/* Je Monat: was reinkommt, was rausgeht, was am Monatsende steht. Die beiden
+   Flüsse werden mitgeführt, weil der Tooltip sie zeigt — eine Kurve allein
+   beantwortet nicht, WARUM der Stand sich ändert. */
+function finForecastRechnen(anzahl) {
+  const heute = new Date();
+  const kostenProMonat = F.fixkosten.reduce((su, k) => su + (k.betrag || 0), 0);
+  const labels = [], werte = [], eingaenge = [], ausgaenge = [];
+  let stand = F.liquiditaet.kontostand || 0;
+
+  for (let i = 0; i < anzahl; i++) {
+    const monatsStart = new Date(heute.getFullYear(), heute.getMonth() + i, 1);
+    const monatsEnde = new Date(heute.getFullYear(), heute.getMonth() + i + 1, 0);
+    const eingang = finRechnungen.reduce((su, r) => {
+      const d = finDatum(r.datum);
+      if (!d) return su;
+      // erster Monat nimmt auch alles Überfällige mit
+      const drin = i === 0 ? d <= monatsEnde : (d >= monatsStart && d <= monatsEnde);
+      return drin ? su + r.betrag : su;
+    }, 0);
+    stand = stand + eingang - kostenProMonat;
+    labels.push(FIN_MONATE_KURZ[monatsEnde.getMonth()] +
+      (monatsEnde.getFullYear() !== heute.getFullYear() ? ' ' + String(monatsEnde.getFullYear()).slice(2) : ''));
+    eingaenge.push(Math.round(eingang));
+    ausgaenge.push(Math.round(kostenProMonat));
+    werte.push(Math.round(stand));
+  }
+  return { labels, werte, eingaenge, ausgaenge, kostenProMonat };
+}
+
 document.getElementById('kontostand').textContent = fmtEUR(F.liquiditaet.kontostand);
-document.getElementById('liq-status').textContent = 'über Minimum (' + fmtEUR(F.liquiditaet.forecast.minimum) + ')';
-new Chart(document.getElementById('chart-liquiditaet'), {
-  type: 'line',
-  data: {
-    labels: F.liquiditaet.forecast.labels,
-    datasets: [
-      { label: 'Liquiditäts-Forecast', data: F.liquiditaet.forecast.werte, borderColor: KK_COLORS.orange, backgroundColor: 'rgba(228,122,61,0.12)', fill: true, tension: 0.35 },
-      { label: 'Minimum', data: F.liquiditaet.forecast.labels.map(() => F.liquiditaet.forecast.minimum), borderColor: KK_COLORS.red, borderDash: [6, 6], pointRadius: 0 }
-    ]
-  },
-  options: { maintainAspectRatio: false, scales: { y: { ticks: { callback: v => (v / 1000) + ' T€' } } } }
-});
+
+let finChart = null;
+const FIN_ZAHLWORT = { 6: 'Sechs', 12: 'Zwölf', 24: 'Vierundzwanzig' };
+
+function finSetzeMonate(n) {
+  finMonate = n;
+  try { localStorage.setItem('kk-fin-forecast-monate', String(n)); } catch (e) { /* egal */ }
+  finZeichneForecast();
+}
+
+function finZeichneForecast() {
+  const f = finForecastRechnen(finMonate);
+
+  /* Ampel richtet sich nach dem tiefsten Punkt im gewählten Fenster. */
+  const tiefstand = Math.min(...f.werte);
+  const liqStatus = document.getElementById('liq-status');
+  liqStatus.textContent = (tiefstand >= liqMin ? 'über Minimum (' : 'unter Minimum (') + fmtEUR(liqMin) + ')';
+  liqStatus.className = 'badge ' + (tiefstand >= liqMin ? 'badge-green' : 'badge-red');
+
+  /* Offenlegen, worauf die Kurve beruht. Ein Forecast, dessen Annahmen man
+     nicht sieht, lädt dazu ein, ihn für mehr zu halten, als er ist. */
+  document.getElementById('liq-grundlage').innerHTML =
+    (FIN_ZAHLWORT[finMonate] || finMonate) + ' Monate ab dem laufenden Monat, jeweils Stand am Monatsende: Kontostand ' +
+    fmtEUR(F.liquiditaet.kontostand) + ' (Stand ' + F.liquiditaet.kontostandDatum + '), ' +
+    'plus die in dem Monat <strong>fälligen oder geplanten Rechnungen</strong>, minus ' +
+    fmtEUR(f.kostenProMonat) + ' Kosten je Monat. ' +
+    'Überfälliges zählt in den ersten Monat. Monate ohne Rechnung fallen nur – ' +
+    'ein Umsatzplan ohne Rechnung fließt hier bewusst <strong>nicht</strong> ein.';
+
+  const schalter = document.getElementById('liq-schalter');
+  schalter.innerHTML = FIN_FENSTER.map((n) =>
+    '<button type="button" data-monate="' + n + '" aria-pressed="' + (n === finMonate) + '"' +
+    (n === finMonate ? ' class="an"' : '') + '>' + n + ' Mon.</button>').join('');
+  schalter.querySelectorAll('button').forEach((b) => {
+    b.addEventListener('click', () => finSetzeMonate(Number(b.dataset.monate)));
+  });
+
+  if (finChart) finChart.destroy();
+  finChart = new Chart(document.getElementById('chart-liquiditaet'), {
+    type: 'line',
+    data: {
+      labels: f.labels,
+      datasets: [
+        { label: 'Liquiditäts-Forecast', data: f.werte, borderColor: KK_COLORS.orange, backgroundColor: 'rgba(228,122,61,0.12)', fill: true, tension: 0.35 }
+      ]
+    },
+    options: {
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: { y: { ticks: { callback: v => (v / 1000) + ' T€' } } },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: (ctx) => ctx.dataset.label + ': ' + fmtEUR(ctx.parsed.y),
+            /* Unter dem Stand steht, woraus er entstanden ist — sonst sieht
+               man zwar, DASS die Kurve fällt, aber nicht warum. */
+            afterBody: (teile) => {
+              const i = teile[0].dataIndex;
+              const veraenderung = f.eingaenge[i] - f.ausgaenge[i];
+              return [
+                'Eingänge: + ' + fmtEUR(f.eingaenge[i]),
+                'Ausgänge: − ' + fmtEUR(f.ausgaenge[i]),
+                'Veränderung: ' + (veraenderung >= 0 ? '+ ' : '− ') + fmtEUR(Math.abs(veraenderung))
+              ];
+            }
+          }
+        }
+      }
+    }
+  });
+}
+finZeichneForecast();
 });
 </script>
 </body>

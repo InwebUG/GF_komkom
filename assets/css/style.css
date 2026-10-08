@@ -467,6 +467,31 @@ a:hover { text-decoration: underline; }
   line-height: 1.15;
 }
 .kpi .kpi-sub { font-size: 0.85rem; color: var(--kk-text); }
+/* Zwei Felder je Zeile statt vier: die Rechnungsfelder tragen einen Schalter
+   und eine Zeitraumzeile, dafür ist eine Viertelspalte zu eng. */
+.kpi.kpi-breit { grid-column: span 2; }
+.kpi.kpi-klickbar { cursor: pointer; transition: transform 0.12s, box-shadow 0.12s; }
+.kpi.kpi-klickbar:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(54, 54, 54, 0.12); }
+.kpi.kpi-klickbar:focus-visible { outline: 2px solid var(--kk-orange); outline-offset: 3px; }
+.kpi .kpi-kopf { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.kpi .kpi-zeitraum {
+  display: block; margin-top: 4px;
+  font-size: 0.78rem; line-height: 1.4; color: var(--kk-gray);
+}
+.kpi-schalter { display: inline-flex; border: 1px solid var(--kk-border); border-radius: 999px; overflow: hidden; background: var(--kk-white); }
+.kpi-schalter button {
+  font-family: inherit; font-size: 0.78rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.5px;
+  padding: 4px 12px; border: none; background: none; cursor: pointer;
+  color: var(--kk-gray); transition: background 0.15s, color 0.15s;
+}
+.kpi-schalter button:hover { background: var(--kk-peach); color: var(--kk-dark); }
+.kpi-schalter button.an { background: var(--kk-orange); color: var(--kk-offwhite); }
+.kpi-schalter button:focus-visible { outline: 2px solid var(--kk-orange-dark); outline-offset: -2px; }
+/* Derselbe Schalter sitzt auch im Kopf der Liquiditätskarte — dort neben
+   einer Überschrift statt in einer Kennzahl. */
+.card-header .kpi-schalter { margin-left: auto; }
+@media (max-width: 1080px) { .kpi.kpi-breit { grid-column: span 1; } }
 .kpi .kpi-trend { font-weight: 700; }
 .trend-up { color: var(--kk-green); }
 .trend-down { color: var(--kk-red); }
@@ -773,6 +798,12 @@ table.edit-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
 }
 .kk-edit-select:focus { border-color: var(--kk-orange); }
 .edit-scalars .kk-edit-select { font-size: 0.98rem; }
+/* Monat + Jahr: zwei schmale Auswahlfelder nebeneinander in einer Zelle */
+.kk-monatjahr { display: inline-flex; gap: 6px; }
+.kk-monatjahr .kk-edit-select { min-width: 0; padding-right: 22px; }
+.kk-monatjahr .kk-edit-select:first-child { flex: 1 1 7.5em; }
+.kk-monatjahr .kk-edit-select:last-child { flex: 0 0 5.5em; }
+.edit-field .edit-note { font-size: 0.78rem; color: var(--kk-gray); margin-top: 4px; line-height: 1.4; }
 
 /* Hinweiszeile „aktuelles Jahr wird automatisch berechnet" im Editor */
 .edit-table tr.edit-autoyear td {

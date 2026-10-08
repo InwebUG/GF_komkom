@@ -31,17 +31,40 @@ const KK = {
       { nr: 'RE-2026-0156', kunde: 'Stadtwerke Hellweg GmbH', betrag: 6200, datum: '12.05.2026', faellig: '11.06.2026', tageUeberfaellig: 0 },
       { nr: 'RE-2026-0159', kunde: 'Pflegedienst Sonnenblick', betrag: 4150, datum: '18.05.2026', faellig: '17.06.2026', tageUeberfaellig: 0 },
       { nr: 'RE-2026-0163', kunde: 'Caritasverband Region Ost', betrag: 9800, datum: '25.05.2026', faellig: '24.06.2026', tageUeberfaellig: 0 },
-      { nr: 'RE-2026-0167', kunde: 'MVZ Gesundheitszentrum Süd', betrag: 7400, datum: '02.06.2026', faellig: '01.07.2026', tageUeberfaellig: 0 }
+      { nr: 'RE-2026-0167', kunde: 'MVZ Gesundheitszentrum Süd', betrag: 7400, datum: '02.06.2026', faellig: '01.07.2026', tageUeberfaellig: 0, leistung: 'mFA-Qualifizierung – Modul 2', umsatzart: 'Seminar' },
+      { kunde: 'Klinikverbund Westfalen', leistung: 'KomPass Führung – Gruppe K14, Module 1–3', betrag: 16800, faellig: '10.2026', umsatzart: 'Ausbildung', status: 'offen' },
+      { kunde: 'Stadtwerke Hellweg GmbH', leistung: 'Führung konkret – Inhouse, 3 Tage', betrag: 9600, faellig: '11.2026', umsatzart: 'Inhouse', status: 'offen' },
+      { kunde: 'Diakonie Soziale Dienste', leistung: 'Teamentwicklung – Begleitung Q4', betrag: 7250, faellig: '12.2026', umsatzart: 'Coaching', status: 'offen' }
     ],
     geplanteRechnungen: [
       { kunde: 'Klinikum Nordstadt gGmbH', leistung: 'KomPass Führung – Gruppe K12, Module 4–6', betrag: 14200, geplant: '15.06.2026' },
       { kunde: 'Berufsförderungswerk Mitte', leistung: 'BZTZ – Durchgang 2026/2', betrag: 18600, geplant: '30.06.2026' },
       { kunde: 'Hausarztpraxen Verbund West', leistung: 'mFA-Qualifizierung – 8 TN', betrag: 9450, geplant: '15.07.2026' },
       { kunde: 'Stadtwerke Hellweg GmbH', leistung: 'Führung konkret – Inhouse, 2 Tage', betrag: 7800, geplant: '31.07.2026' },
-      { kunde: 'AWO Bezirksverband', leistung: 'KomPass Führung – Gruppe K13, Module 1–3', betrag: 13100, geplant: '15.08.2026' }
+      { kunde: 'AWO Bezirksverband', leistung: 'KomPass Führung – Gruppe K13, Module 1–3', betrag: 13100, geplant: '15.08.2026', umsatzart: 'Ausbildung' },
+      { kunde: 'Berufsförderungswerk Mitte', leistung: 'BZTZ – Durchgang 2026/3, Abschlussrate', betrag: 18600, geplant: '12.2026', umsatzart: 'Ausbildung', status: 'geplant' },
+      { kunde: 'Jobcenter Region Mitte', leistung: 'BZTZ – Durchgang 2027/1, erste Rate', betrag: 24500, geplant: '01.2027', umsatzart: 'Ausbildung', status: 'geplant' },
+      { kunde: 'Ärztenetz Nordwest', leistung: 'mFA-Qualifizierung – Frühjahrsgruppe', betrag: 11900, geplant: '03.2027', umsatzart: 'Seminar', status: 'geplant' },
+      { kunde: 'Klinikum Nordstadt gGmbH', leistung: 'KomPass Führung – Gruppe K15, Module 1–3', betrag: 15400, geplant: '03.2027', umsatzart: 'Ausbildung', status: 'geplant' },
+      { kunde: 'Caritasverband Region Ost', leistung: 'Führung konkret – Inhouse, 2 Tage', betrag: 7800, geplant: '04.2027', umsatzart: 'Inhouse', status: 'geplant' },
+      { kunde: 'Pflegedienst Sonnenblick', leistung: 'Seminarmaterial & Lizenzen 2027', betrag: 3200, geplant: '05.2027', umsatzart: 'Material', status: 'geplant' },
+      { kunde: 'Klinikverbund Westfalen', leistung: 'KomPass Führung – Gruppe K14, Module 4–6', betrag: 16800, geplant: '06.2027', umsatzart: 'Ausbildung', status: 'geplant' },
+      { kunde: 'Hausarztpraxen Verbund West', leistung: 'mFA-Qualifizierung – Sommergruppe', betrag: 9450, geplant: '08.2027', umsatzart: 'Seminar', status: 'geplant' },
+      { kunde: 'Stadtwerke Hellweg GmbH', leistung: 'Führungskräfte-Reihe 2027/28, Auftakt', betrag: 21300, geplant: '09.2027', umsatzart: 'Inhouse', status: 'geplant' },
+      { kunde: 'Jobcenter Region Mitte', leistung: 'BZTZ – Durchgang 2026/2, Schlussrate', betrag: 28400, geplant: '11.2026', umsatzart: 'Ausbildung', status: 'geplant' },
+      { kunde: 'MVZ Gesundheitszentrum Süd', leistung: 'mFA-Qualifizierung – Winterkurs', betrag: 14200, geplant: '12.2026', umsatzart: 'Seminar', status: 'geplant' },
+      { kunde: 'Diakonie Soziale Dienste', leistung: 'Führung konkret – Reihe, Teil 1', betrag: 16900, geplant: '01.2027', umsatzart: 'Inhouse', status: 'geplant' },
+      { kunde: 'Klinikverbund Westfalen', leistung: 'BZTZ – Durchgang 2027/1, zweite Rate', betrag: 26700, geplant: '03.2027', umsatzart: 'Ausbildung', status: 'geplant' },
+      { kunde: 'AWO Bezirksverband', leistung: 'KomPass Führung – Gruppe K13, Module 4–6', betrag: 22400, geplant: '03.2027', umsatzart: 'Ausbildung', status: 'geplant' },
+      { kunde: 'Berufsförderungswerk Mitte', leistung: 'BZTZ – Durchgang 2027/2, erste Rate', betrag: 29800, geplant: '04.2027', umsatzart: 'Ausbildung', status: 'geplant' },
+      { kunde: 'Klinikum Nordstadt gGmbH', leistung: 'KomPass Führung – Gruppe K15, Module 4–6', betrag: 33500, geplant: '05.2027', umsatzart: 'Ausbildung', status: 'geplant' },
+      { kunde: 'Ärztenetz Nordwest', leistung: 'Teamentwicklung – Begleitung H1', betrag: 18900, geplant: '06.2027', umsatzart: 'Coaching', status: 'geplant' },
+      { kunde: 'Jobcenter Region Mitte', leistung: 'BZTZ – Durchgang 2027/2, zweite Rate', betrag: 31200, geplant: '07.2027', umsatzart: 'Ausbildung', status: 'geplant' },
+      { kunde: 'Caritasverband Region Ost', leistung: 'KomPass Führung – Gruppe K16, Module 1–3', betrag: 24600, geplant: '08.2027', umsatzart: 'Ausbildung', status: 'geplant' },
+      { kunde: 'Hausarztpraxen Verbund West', leistung: 'mFA-Qualifizierung – Herbstgruppe', betrag: 19800, geplant: '09.2027', umsatzart: 'Seminar', status: 'geplant' }
     ],
     bezahlteRechnungen: [
-      { nr: 'RE-2026-0118', kunde: 'Klinikum Nordstadt gGmbH', leistung: 'KomPass Führung – Gruppe K11, Module 1–3', betrag: 11800, bezahltAm: '12.04.2026', status: 'bezahlt' },
+      { nr: 'RE-2026-0118', kunde: 'Klinikum Nordstadt gGmbH', leistung: 'KomPass Führung – Gruppe K11, Module 1–3', betrag: 11800, bezahltAm: '12.04.2026', umsatzart: 'Ausbildung', status: 'bezahlt' },
       { nr: 'RE-2026-0129', kunde: 'Caritasverband Region Ost', leistung: 'Führung konkret – Inhouse, 2 Tage', betrag: 7600, bezahltAm: '28.04.2026', status: 'bezahlt' }
     ],
     fixkosten: [
