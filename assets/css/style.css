@@ -803,8 +803,12 @@ table.edit-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
 .kk-edit-select:focus { border-color: var(--kk-orange); }
 .edit-scalars .kk-edit-select { font-size: 0.98rem; }
 /* Monat + Jahr: zwei schmale Auswahlfelder nebeneinander in einer Zelle */
-.kk-modal-breit { max-width: 1320px; }
-@media (max-width: 1400px) { .kk-modal-breit { max-width: calc(100vw - 40px); } }
+/* Breit, aber nie über die Navigationsleiste hinweg: Die Leiste ist
+   eingeklappt 100 px breit, und ein Fenster, das sie überdeckt, sieht
+   verschoben aus statt groß. Links bleibt deshalb immer Platz für sie plus
+   Rand; auf schmalen Schirmen zählt nur noch der Rand. */
+.kk-modal-breit { max-width: min(1320px, calc(100vw - 220px)); }
+@media (max-width: 900px) { .kk-modal-breit { max-width: calc(100vw - 40px); } }
 
 /* Monat + Jahr: beide Felder müssen ihren Inhalt ganz zeigen — „September"
    ist das längste, vierstellige Jahre sind fix. Deshalb feste Mindestbreiten
