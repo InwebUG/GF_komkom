@@ -933,7 +933,7 @@ function kkOpenEditor(modKey, sectionKey) {
   const overlay = document.createElement('div');
   overlay.className = 'kk-modal-overlay';
   const modal = document.createElement('div');
-  modal.className = 'kk-modal';
+  modal.className = 'kk-modal kk-modal-breit';
   overlay.appendChild(modal);
 
   /* Kopf */

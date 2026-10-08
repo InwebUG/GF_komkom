@@ -686,6 +686,10 @@ table.kk-table {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   width: 100%;
   max-width: 960px;
+  /* Das Bearbeiten-Fenster bekommt mehr Breite (.kk-modal-breit weiter
+     unten): Seit die Rechnungslisten Leistung, Umsatzart und zwei
+     Auswahlfelder für Monat und Jahr tragen, waren die Spalten rechts
+     abgeschnitten. Andere Dialoge setzen ihre Breite selbst. */
   display: flex;
   flex-direction: column;
   max-height: calc(100vh - 80px);
@@ -799,10 +803,16 @@ table.edit-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
 .kk-edit-select:focus { border-color: var(--kk-orange); }
 .edit-scalars .kk-edit-select { font-size: 0.98rem; }
 /* Monat + Jahr: zwei schmale Auswahlfelder nebeneinander in einer Zelle */
+.kk-modal-breit { max-width: 1320px; }
+@media (max-width: 1400px) { .kk-modal-breit { max-width: calc(100vw - 40px); } }
+
+/* Monat + Jahr: beide Felder müssen ihren Inhalt ganz zeigen — „September"
+   ist das längste, vierstellige Jahre sind fix. Deshalb feste Mindestbreiten
+   statt schrumpfender Flexboxen. */
 .kk-monatjahr { display: inline-flex; gap: 6px; }
-.kk-monatjahr .kk-edit-select { min-width: 0; padding-right: 22px; }
-.kk-monatjahr .kk-edit-select:first-child { flex: 1 1 7.5em; }
-.kk-monatjahr .kk-edit-select:last-child { flex: 0 0 5.5em; }
+.kk-monatjahr .kk-edit-select { padding-right: 24px; }
+.kk-monatjahr .kk-edit-select:first-child { flex: 0 0 auto; min-width: 8.6em; }
+.kk-monatjahr .kk-edit-select:last-child { flex: 0 0 auto; min-width: 5.6em; }
 .edit-field .edit-note { font-size: 0.78rem; color: var(--kk-gray); margin-top: 4px; line-height: 1.4; }
 
 /* Hinweiszeile „aktuelles Jahr wird automatisch berechnet" im Editor */
