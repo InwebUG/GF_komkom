@@ -396,7 +396,8 @@ const KK_SECTIONS = {
   finanzen: {
     jahresvergleich: { label: 'Jahresvergleich', lists: ['jahresvergleich'], series: ['monatsumsatz2026'] },
     rechnungen:      { label: 'Ausstehende Rechnungen', lists: ['offeneRechnungen', 'geplanteRechnungen', 'bezahlteRechnungen'] },
-    kosten:          { label: 'Anstehende Kosten & Liquidität', scalars: ['liquiditaet.kontostand', 'liquiditaet.kontostandDatum', 'liquiditaet.forecast.minimum'], lists: ['fixkosten'], series: ['liquiditaet.forecast'] }
+    kosten:          { label: 'Anstehende Kosten & Liquidität', scalars: ['liquiditaet.kontostand', 'liquiditaet.kontostandDatum', 'liquiditaet.forecast.minimum'], lists: ['fixkosten'] },
+    ziele:           { label: 'Rechnungsziele', lists: ['rechnungsziele'] }
   },
   teilnehmer: {
     kennzahlen:  { label: 'Kennzahlen', scalars: ['aktuellInAusbildung', 'baldFertig', 'gesamtAktiv', 'gesamtAbsolventen', 'anzahlModuleLaufend', 'tnTageYtd', 'jahresdurchschnittTn'] },
@@ -423,7 +424,11 @@ const KK_DB_MAP = {
   finanzen: {
     table: 'komkom_finanzen',
     scalars: [['kontostand', 'liquiditaet.kontostand'], ['kontostand_datum', 'liquiditaet.kontostandDatum'], ['liquiditaet_minimum', 'liquiditaet.forecast.minimum']],
-    json: [['jahresvergleich', 'jahresvergleich'], ['monatsumsatz', 'monatsumsatz2026'], ['offene_rechnungen', 'offeneRechnungen'], ['geplante_rechnungen', 'geplanteRechnungen'], ['bezahlte_rechnungen', 'bezahlteRechnungen'], ['fixkosten', 'fixkosten'], ['liquiditaet_forecast', 'liquiditaet.forecast']]
+    json: [['jahresvergleich', 'jahresvergleich'], ['monatsumsatz', 'monatsumsatz2026'], ['offene_rechnungen', 'offeneRechnungen'], ['geplante_rechnungen', 'geplanteRechnungen'], ['bezahlte_rechnungen', 'bezahlteRechnungen'], ['fixkosten', 'fixkosten'], ['liquiditaet_forecast', 'liquiditaet.forecast'], ['umsatzarten', 'umsatzarten'], ['rechnungsziele', 'rechnungsziele']],
+    /* Spalten, die es erst seit dem 15.10.2026 gibt: Bei Bestandszeilen stehen
+       sie auf NULL. Ohne diesen Vermerk bliebe dort der Demo-Wert stehen — und
+       Demo-Ziele sähen aus wie echte. Leer heisst hier wirklich leer. */
+    leerWennNull: ['umsatzarten', 'rechnungsziele']
   },
   teilnehmer: {
     table: 'komkom_teilnehmer',
@@ -449,7 +454,11 @@ function kkTable(modKey) { return sb.schema('customer_content').from(KK_DB_MAP[m
 function kkRowToModule(modKey, row) {
   const map = KK_DB_MAP[modKey];
   const target = KK[modKey];
-  map.json.forEach(([col, path]) => { if (row[col] != null) kkSetPath(target, path, row[col]); });
+  const leer = map.leerWennNull || [];
+  map.json.forEach(([col, path]) => {
+    if (row[col] != null) kkSetPath(target, path, row[col]);
+    else if (leer.indexOf(col) !== -1) kkSetPath(target, path, []);
+  });
   map.scalars.forEach(([col, path]) => { if (row[col] != null) kkSetPath(target, path, row[col]); });
 }
 
@@ -533,6 +542,11 @@ async function kkDeleteModule(modKey) {
 }
 
 /* ---------- Editor-Schema (spiegelt die Supabase-Spalten) ---------- */
+/* Ziele werden jährlich gesetzt, immer für das laufende und die beiden
+   folgenden Jahre. Die Liste wächst beim Jahreswechsel von selbst mit, weil
+   sie aus dem heutigen Datum entsteht und nicht fest eingetragen ist. */
+const KK_ZIELJAHRE = [0, 1, 2].map((i) => String(new Date().getFullYear() + i));
+
 const KK_EDIT_SCHEMA = {
   finanzen: {
     label: 'Finanzen',
@@ -548,20 +562,24 @@ const KK_EDIT_SCHEMA = {
         { k: 'kosten', label: 'Kosten', kind: 'num' }, { k: 'gewinn', label: 'EÜ/Gewinn', kind: 'num' } ] },
       { key: 'offeneRechnungen', label: 'Offene Rechnungen', cols: [
         { k: 'kunde', label: 'Kunde', kind: 'text' }, { k: 'leistung', label: 'Leistung', kind: 'text' },
-        { k: 'betrag', label: 'Betrag', kind: 'num' }, { k: 'umsatzart', label: 'Umsatzart', kind: 'text' },
+        { k: 'betrag', label: 'Betrag', kind: 'num' }, { k: 'umsatzart', label: 'Umsatzart', kind: 'umsatzart' },
         { k: 'faellig', label: 'Fällig', kind: 'monatjahr' },
         { k: 'status', label: 'Status', kind: 'select', options: ['geplant', 'offen', 'bezahlt'], default: 'offen' } ] },
       { key: 'geplanteRechnungen', label: 'Geplante Rechnungen', cols: [
         { k: 'kunde', label: 'Kunde', kind: 'text' }, { k: 'leistung', label: 'Leistung', kind: 'text' },
-        { k: 'betrag', label: 'Betrag', kind: 'num' }, { k: 'umsatzart', label: 'Umsatzart', kind: 'text' },
+        { k: 'betrag', label: 'Betrag', kind: 'num' }, { k: 'umsatzart', label: 'Umsatzart', kind: 'umsatzart' },
         { k: 'geplant', label: 'Geplant zum', kind: 'monatjahr' },
         { k: 'status', label: 'Status', kind: 'select', options: ['geplant', 'offen', 'bezahlt'], default: 'geplant' } ] },
       { key: 'bezahlteRechnungen', label: 'Bezahlte Rechnungen', cols: [
         { k: 'kunde', label: 'Kunde', kind: 'text' },
         { k: 'leistung', label: 'Leistung', kind: 'text' }, { k: 'betrag', label: 'Betrag', kind: 'num' },
-        { k: 'umsatzart', label: 'Umsatzart', kind: 'text' },
-        { k: 'bezahltAm', label: 'Bezahlt am', kind: 'text' },
+        { k: 'umsatzart', label: 'Umsatzart', kind: 'umsatzart' },
+        { k: 'bezahltAm', label: 'Bezahlt am', kind: 'monatjahr' },
         { k: 'status', label: 'Status', kind: 'select', options: ['geplant', 'offen', 'bezahlt'], default: 'bezahlt' } ] },
+      { key: 'rechnungsziele', label: 'Rechnungsziele', hinweis: 'Je Jahr und Umsatzart ein Ziel. Die Grafik unter „Liquidität & Forecast" vergleicht es mit dem, was in dem Jahr fällig, geplant oder bezahlt ist.', cols: [
+        { k: 'jahr', label: 'Jahr', kind: 'select', options: KK_ZIELJAHRE, default: String(new Date().getFullYear()) },
+        { k: 'umsatzart', label: 'Umsatzart', kind: 'umsatzart' },
+        { k: 'ziel', label: 'Ziel (€)', kind: 'num' } ] },
       { key: 'fixkosten', label: 'Fixkosten & variable Kosten', cols: [
         { k: 'posten', label: 'Posten', kind: 'text' }, { k: 'betrag', label: 'Betrag/Monat', kind: 'num' },
         { k: 'faellig', label: 'Fälligkeit', kind: 'text' }, { k: 'art', label: 'Art (fix/variabel)', kind: 'text' } ] }
@@ -680,6 +698,36 @@ function kkHeute() {
 
 const KK_SAVE_TRANSFORMS = {
   finanzen: function (w) {
+    /* Umsatzarten sauber halten: was in den Zeilen benutzt wird, gehört in die
+       Liste; Doppelte und Leeres fliegen raus. So bleibt das Auswahlfeld auch
+       dann vollständig, wenn eine Art nur in einer alten Zeile steht. */
+    const arten = Array.isArray(w.umsatzarten) ? w.umsatzarten.slice() : [];
+    ['offeneRechnungen', 'geplanteRechnungen', 'bezahlteRechnungen', 'rechnungsziele'].forEach((k) => {
+      (Array.isArray(w[k]) ? w[k] : []).forEach((r) => {
+        const a = String(r.umsatzart || '').trim();
+        if (a && arten.indexOf(a) === -1) arten.push(a);
+      });
+    });
+    w.umsatzarten = arten.filter(Boolean).sort((a, b) => a.localeCompare(b, 'de'));
+
+    /* Ziele: je Jahr und Umsatzart nur eines, leere Zeilen verwerfen. */
+    if (Array.isArray(w.rechnungsziele)) {
+      const gesehen = {};
+      w.rechnungsziele = w.rechnungsziele.filter((z) => {
+        const jahr = String(z.jahr || '').trim();
+        const art = String(z.umsatzart || '').trim();
+        if (!jahr || !art) return false;
+        const schluessel = jahr + '|' + art;
+        if (gesehen[schluessel]) return false;
+        gesehen[schluessel] = true;
+        z.jahr = jahr; z.umsatzart = art;
+        z.ziel = (z.ziel != null ? z.ziel : null);
+        return true;
+      });
+    } else {
+      w.rechnungsziele = [];
+    }
+
     if (!Array.isArray(w.offeneRechnungen)) w.offeneRechnungen = [];
     if (!Array.isArray(w.geplanteRechnungen)) w.geplanteRechnungen = [];
     if (!Array.isArray(w.bezahlteRechnungen)) w.bezahlteRechnungen = [];
@@ -862,7 +910,101 @@ function kkMonatJahrFeld(value, onChange) {
   return wrap;
 }
 
+/* Die gepflegte Liste der Umsatzarten des gerade offenen Moduls. Wird beim
+   Öffnen des Editors gesetzt, damit die Auswahlfelder sie lesen UND ergänzen
+   können — ein Feld allein weiss nicht, welche Arten es sonst noch gibt. */
+let kkEditWork = null;
+
+function kkUmsatzarten() {
+  const w = kkEditWork || {};
+  const liste = Array.isArray(w.umsatzarten) ? w.umsatzarten.slice() : [];
+  // Was in den Zeilen steht, gehört dazu — auch wenn es nie gepflegt wurde.
+  ['offeneRechnungen', 'geplanteRechnungen', 'bezahlteRechnungen', 'rechnungsziele'].forEach((k) => {
+    (Array.isArray(w[k]) ? w[k] : []).forEach((r) => {
+      const a = String(r.umsatzart || '').trim();
+      if (a && liste.indexOf(a) === -1) liste.push(a);
+    });
+  });
+  return liste.sort((a, b) => a.localeCompare(b, 'de'));
+}
+
+/* Alle offenen Umsatzart-Felder dieses Editors. Kommt eine Art dazu, müssen
+   sie ihre Liste neu aufbauen — sonst kennt nur die Zeile die neue Art, in der
+   sie angelegt wurde, und man legt sie unten gleich noch einmal an. */
+let kkUmsatzartFelder = [];
+
+function kkUmsatzartMerken(wert) {
+  if (!kkEditWork) return;
+  if (!Array.isArray(kkEditWork.umsatzarten)) kkEditWork.umsatzarten = kkUmsatzarten();
+  const a = String(wert || '').trim();
+  if (a && kkEditWork.umsatzarten.indexOf(a) === -1) kkEditWork.umsatzarten.push(a);
+  kkUmsatzartFelder.forEach((f) => { try { f(); } catch (e) { /* Feld ist weg */ } });
+}
+
+/* Auswahlfeld mit „+ Neue Umsatzart" am Ende der Liste. Die neue Art wird
+   sofort in die gepflegte Liste übernommen und steht damit in jeder anderen
+   Zeile zur Auswahl — ohne Speichern dazwischen. */
+/* Kennung für den Eintrag „+ Neue Umsatzart": ein Wert, den niemand von Hand
+   vergibt, aber lesbar — ein Steuerzeichen an dieser Stelle hat in Werkzeugen
+   und Protokollen nur Ärger gemacht. */
+const KK_NEUE_ART = '__neue-umsatzart__';
+
+function kkUmsatzartFeld(value, onChange) {
+  const wrap = document.createElement('span');
+  wrap.className = 'kk-umsatzart';
+  let gewaehlt = String(value || '');
+  // Nur Felder im Dokument nachziehen; gelöschte Zeilen fallen von selbst raus.
+  kkUmsatzartFelder.push(() => { if (wrap.isConnected) bauen(gewaehlt); });
+
+  function bauen(aktuell) {
+    gewaehlt = aktuell;
+    wrap.innerHTML = '';
+    const sel = document.createElement('select');
+    sel.className = 'kk-edit-select';
+    sel.setAttribute('aria-label', 'Umsatzart');
+    const leer = document.createElement('option');
+    leer.value = ''; leer.textContent = '–';
+    sel.appendChild(leer);
+    kkUmsatzarten().forEach((a) => {
+      const o = document.createElement('option');
+      o.value = a; o.textContent = a;
+      if (a === aktuell) o.selected = true;
+      sel.appendChild(o);
+    });
+    const neu = document.createElement('option');
+    neu.value = KK_NEUE_ART; neu.textContent = '+ Neue Umsatzart …';
+    sel.appendChild(neu);
+
+    sel.addEventListener('change', () => {
+      if (sel.value !== KK_NEUE_ART) { gewaehlt = sel.value; onChange(sel.value); return; }
+      // Eingabefeld an Ort und Stelle, kein Dialog: die Zeile bleibt sichtbar.
+      wrap.innerHTML = '';
+      const inp = document.createElement('input');
+      inp.type = 'text';
+      inp.className = 'kk-edit-neu';
+      inp.placeholder = 'Name der Umsatzart';
+      const fertig = (uebernehmen) => {
+        const wert = inp.value.trim();
+        if (uebernehmen && wert) { kkUmsatzartMerken(wert); onChange(wert); bauen(wert); }
+        else bauen(aktuell);
+      };
+      inp.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); fertig(true); }
+        if (e.key === 'Escape') { e.preventDefault(); fertig(false); }
+      });
+      inp.addEventListener('blur', () => fertig(true));
+      wrap.appendChild(inp);
+      inp.focus();
+    });
+    wrap.appendChild(sel);
+  }
+
+  bauen(String(value || ''));
+  return wrap;
+}
+
 function kkInput(kind, value, onChange, def) {
+  if (kind === 'umsatzart') return kkUmsatzartFeld(value, onChange);
   if (kind === 'monatjahr') return kkMonatJahrFeld(value, onChange);
   if (kind === 'select') {
     const sel = document.createElement('select');
@@ -919,6 +1061,10 @@ function kkOpenEditor(modKey, sectionKey) {
   const draftRaw = sessionStorage.getItem(draftKey);
   if (draftRaw) { try { work = JSON.parse(draftRaw); draftRestored = true; } catch (e) { work = JSON.parse(baseline); } }
   else { work = JSON.parse(baseline); }
+
+  // Die Umsatzart-Felder lesen und ergänzen die Liste des offenen Moduls.
+  kkEditWork = work;
+  kkUmsatzartFelder = [];
 
   const isDirty = () => JSON.stringify(work) !== baseline;
   const clearDraft = () => sessionStorage.removeItem(draftKey);
@@ -988,6 +1134,12 @@ function kkOpenEditor(modKey, sectionKey) {
     const h = document.createElement('h3');
     h.textContent = listDef.label;
     grp.appendChild(h);
+    if (listDef.hinweis) {
+      const p = document.createElement('p');
+      p.className = 'edit-hinweis';
+      p.textContent = listDef.hinweis;
+      grp.appendChild(p);
+    }
     const wrap = document.createElement('div');
     wrap.className = 'edit-table-wrap';
     grp.appendChild(wrap);

@@ -103,6 +103,21 @@
     </div>
   </div>
 
+  <!-- Rechnungsziele -->
+  <div class="section-head" id="abschnitt-ziele">
+    <h2 class="section-title">Rechnungsziele</h2>
+    <button class="btn btn-sm btn-edit btn-edit-sec" onclick="kkOpenEditor('finanzen','ziele')">✎ bearbeiten</button>
+  </div>
+  <div class="card mb-20">
+    <div class="card-header">
+      <h2>Ziel und Stand je Umsatzart</h2>
+      <div class="kpi-schalter" id="ziel-schalter" role="group" aria-label="Zieljahr"></div>
+    </div>
+    <div class="chart-box" id="ziel-box"><canvas id="chart-ziele"></canvas></div>
+    <div id="ziel-leer" class="empty-note" hidden></div>
+    <p class="muted" style="margin-top:10px" id="ziel-grundlage"></p>
+  </div>
+
 </main>
 </div>
 
@@ -340,72 +355,264 @@ new Chart(document.getElementById('chart-monate'), {
   options: { maintainAspectRatio: false, scales: { y: { ticks: { callback: v => (v / 1000) + ' T€' } } } }
 });
 
+/* ------------------------------------------------------------------
+   Rechnungsziele je Umsatzart.
+
+   Ziele werden jährlich gesetzt, immer für das laufende und die beiden
+   folgenden Jahre — die Liste entsteht aus dem heutigen Datum und wandert
+   beim Jahreswechsel von selbst weiter.
+
+   Als „erreicht" zählt, was in dem Jahr abgerechnet ODER fest eingeplant
+   ist: bezahlte, offene und geplante Rechnungen, jede nach ihrem eigenen
+   Datum (bezahlt am / fällig / geplant zum). Ein Ziel, das nur bezahlte
+   Rechnungen zählt, stünde das halbe Jahr auf null, obwohl die Arbeit längst
+   verkauft ist.
+   ------------------------------------------------------------------ */
+const FIN_ZIELJAHRE = [0, 1, 2].map((i) => String(new Date().getFullYear() + i));
+let finZielJahr = FIN_ZIELJAHRE[0];
+try {
+  const gemerkt = localStorage.getItem('kk-fin-zieljahr');
+  if (FIN_ZIELJAHRE.indexOf(gemerkt) !== -1) finZielJahr = gemerkt;
+} catch (e) { /* privater Modus */ }
+
+let finZielChart = null;
+
+function finZieleRechnen(jahr) {
+  const ziele = Array.isArray(F.rechnungsziele) ? F.rechnungsziele : [];
+  const alle = [
+    ...(F.offeneRechnungen || []).map(r => ({ art: r.umsatzart, betrag: r.betrag || 0, datum: r.faellig || r.datum })),
+    ...(F.geplanteRechnungen || []).map(r => ({ art: r.umsatzart, betrag: r.betrag || 0, datum: r.geplant })),
+    ...(F.bezahlteRechnungen || []).map(r => ({ art: r.umsatzart, betrag: r.betrag || 0, datum: r.bezahltAm })),
+  ];
+
+  const stand = {};
+  const merke = (art) => { if (!stand[art]) stand[art] = { ziel: 0, ist: 0 }; };
+  ziele.filter(z => String(z.jahr) === String(jahr)).forEach((z) => {
+    const art = String(z.umsatzart || '').trim();
+    if (!art) return;
+    merke(art);
+    stand[art].ziel += Number(z.ziel) || 0;
+  });
+  alle.forEach((r) => {
+    const art = String(r.art || '').trim();
+    const d = finDatum(r.datum);
+    if (!art || !d || String(d.getFullYear()) !== String(jahr)) return;
+    merke(art);
+    stand[art].ist += r.betrag;
+  });
+
+  const arten = Object.keys(stand).sort((a, b) => a.localeCompare(b, 'de'));
+  return {
+    arten,
+    ziel: arten.map(a => Math.round(stand[a].ziel)),
+    ist: arten.map(a => Math.round(stand[a].ist)),
+  };
+}
+
+function finSetzeZielJahr(j) {
+  finZielJahr = j;
+  try { localStorage.setItem('kk-fin-zieljahr', j); } catch (e) { /* egal */ }
+  finZieleZeichnen();
+}
+
+function finZieleZeichnen() {
+  const d = finZieleRechnen(finZielJahr);
+
+  const schalter = document.getElementById('ziel-schalter');
+  schalter.innerHTML = FIN_ZIELJAHRE.map((j) =>
+    '<button type="button" data-jahr="' + j + '" aria-pressed="' + (j === finZielJahr) + '"' +
+    (j === finZielJahr ? ' class="an"' : '') + '>' + j + '</button>').join('');
+  schalter.querySelectorAll('button').forEach((b) => {
+    b.addEventListener('click', () => finSetzeZielJahr(b.dataset.jahr));
+  });
+
+  const leer = document.getElementById('ziel-leer');
+  const box = document.getElementById('ziel-box');
+  if (!d.arten.length) {
+    box.hidden = true;
+    leer.hidden = false;
+    leer.textContent = 'Für ' + finZielJahr + ' ist noch kein Ziel gesetzt und keine Rechnung eingetragen. ' +
+      'Ziele legst du über „bearbeiten" je Jahr und Umsatzart fest.';
+    document.getElementById('ziel-grundlage').textContent = '';
+    if (finZielChart) { finZielChart.destroy(); finZielChart = null; }
+    return;
+  }
+  box.hidden = false;
+  leer.hidden = true;
+
+  const offeneZiele = d.ziel.reduce((s, v) => s + v, 0);
+  const summeIst = d.ist.reduce((s, v) => s + v, 0);
+  document.getElementById('ziel-grundlage').innerHTML =
+    'Ziel gesamt ' + fmtEUR(offeneZiele) + ' · erreicht ' + fmtEUR(summeIst) +
+    (offeneZiele > 0 ? ' (' + Math.round(summeIst / offeneZiele * 100) + ' %)' : '') +
+    '. Als erreicht zählt, was in ' + finZielJahr + ' <strong>bezahlt, offen oder geplant</strong> ist – ' +
+    'jede Rechnung nach ihrem eigenen Datum.';
+
+  if (finZielChart) finZielChart.destroy();
+  finZielChart = new Chart(document.getElementById('chart-ziele'), {
+    type: 'bar',
+    data: {
+      labels: d.arten,
+      datasets: [
+        { label: 'Ziel', data: d.ziel, backgroundColor: 'rgba(138,138,138,0.35)', borderRadius: 6 },
+        { label: 'Erreicht', data: d.ist, borderRadius: 6, backgroundColor: KK_COLORS.green }
+      ]
+    },
+    options: {
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: { y: { ticks: { callback: v => (v / 1000) + ' T€' } } },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: (ctx) => ctx.dataset.label + ': ' + fmtEUR(ctx.parsed.y),
+            afterBody: (teile) => {
+              const i = teile[0].dataIndex;
+              if (!d.ziel[i]) return ['Für diese Umsatzart ist kein Ziel gesetzt.'];
+              const rest = d.ziel[i] - d.ist[i];
+              return [rest > 0 ? 'Noch offen: ' + fmtEUR(rest) : 'Ziel übertroffen um ' + fmtEUR(-rest)];
+            }
+          }
+        }
+      }
+    }
+  });
+}
+finZieleZeichnen();
+
+/* ------------------------------------------------------------------
+   Sortierbare Tabellen.
+
+   Eine Sortierung je Tabelle: ein neuer Klick auf eine andere Spalte löst
+   die alte ab, ein zweiter Klick auf dieselbe dreht die Richtung. Der Pfeil
+   steht nur an der Spalte, nach der gerade sortiert wird — vorher ist keiner
+   zu sehen, damit die Kopfzeile ruhig bleibt.
+   ------------------------------------------------------------------ */
+/* Eigene Maskierung: `esc()` lebt im Generator, nicht in app.js. */
+const finEsc = (t) => String(t == null ? '' : t).replace(/[&<>"']/g,
+  (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+const finSortierung = {};        // Tabellen-ID -> { spalte, richtung }
+const finTabellenDaten = {};     // Tabellen-ID -> { zeilen, spalten, fuss }
+
+function finVergleich(a, b) {
+  const aLeer = a === null || a === undefined || a === '';
+  const bLeer = b === null || b === undefined || b === '';
+  if (aLeer && bLeer) return 0;
+  if (aLeer) return 1;           // Leeres immer ans Ende, in beide Richtungen
+  if (bLeer) return -1;
+  if (typeof a === 'number' && typeof b === 'number') return a - b;
+  return String(a).localeCompare(String(b), 'de', { numeric: true });
+}
+
+/* spalten: [{ label, klasse?, wert?(zeile), zelle(zeile) }] — ohne `wert`
+   ist die Spalte nicht sortierbar (z. B. eine reine Statusanzeige). */
+function finTabelle(id, zeilen, spalten, fuss) {
+  finTabellenDaten[id] = { zeilen, spalten, fuss };
+  finTabelleZeichnen(id);
+}
+
+function finTabelleZeichnen(id) {
+  const { zeilen, spalten, fuss } = finTabellenDaten[id];
+  const sort = finSortierung[id];
+  let daten = zeilen.slice();
+  if (sort && spalten[sort.spalte] && spalten[sort.spalte].wert) {
+    const hol = spalten[sort.spalte].wert;
+    const richtung = sort.richtung === 'ab' ? -1 : 1;
+    daten.sort((x, y) => finVergleich(hol(x), hol(y)) * richtung);
+  }
+
+  const kopf = spalten.map((sp, i) => {
+    const sortierbar = typeof sp.wert === 'function';
+    const aktiv = sort && sort.spalte === i;
+    return '<th class="' + (sp.klasse || '') + (sortierbar ? ' sortierbar' : '') + '"' +
+      (sortierbar ? ' data-spalte="' + i + '" tabindex="0" role="button"' +
+        ' aria-label="Nach ' + finEsc(sp.label) + ' sortieren"' : '') + '>' +
+      finEsc(sp.label) +
+      (aktiv ? '<span class="sortpfeil ' + sort.richtung + '" aria-hidden="true">&lsaquo;</span>' : '') +
+      '</th>';
+  }).join('');
+
+  const tabelle = document.getElementById(id);
+  tabelle.innerHTML = '<thead><tr>' + kopf + '</tr></thead><tbody>' +
+    daten.map((z) => '<tr>' + spalten.map((sp) =>
+      '<td' + (sp.klasse ? ' class="' + sp.klasse + '"' : '') + '>' + sp.zelle(z) + '</td>').join('') + '</tr>').join('') +
+    '</tbody>' + (fuss || '');
+
+  tabelle.querySelectorAll('th.sortierbar').forEach((th) => {
+    const i = Number(th.dataset.spalte);
+    const um = () => {
+      const jetzt = finSortierung[id];
+      finSortierung[id] = (jetzt && jetzt.spalte === i)
+        ? { spalte: i, richtung: jetzt.richtung === 'auf' ? 'ab' : 'auf' }
+        : { spalte: i, richtung: 'auf' };
+      finTabelleZeichnen(id);
+    };
+    th.addEventListener('click', um);
+    th.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); um(); } });
+  });
+}
+
+/* Kunde und Leistung stehen in einer Zelle — sortiert wird nach dem Kunden. */
+const finKundeZelle = (r) => '<strong>' + (r.kunde || '–') + '</strong>' +
+  (r.leistung ? '<br><span class="muted">' + r.leistung + '</span>' : '');
+const finZeit = (text) => { const d = finDatum(text); return d ? d.getTime() : null; };
+
 /* Offene Rechnungen */
 const sumOffen = F.offeneRechnungen.reduce((s, r) => s + r.betrag, 0);
 /* Überfällig heisst jetzt: der Fälligkeitsmonat ist vorbei. Das gespeicherte
    Feld „Tage überfällig" gibt es nicht mehr — es musste von Hand gepflegt
    werden und war damit immer einen Tag zu alt. */
 const finHeute = new Date();
-document.getElementById('tbl-offene').innerHTML =
-  '<thead><tr><th>Kunde / Leistung</th><th class="num">Betrag</th><th>Umsatzart</th><th>Fällig</th><th>Status</th></tr></thead><tbody>' +
-  F.offeneRechnungen.map(r => {
-    const d = finDatum(r.faellig || r.datum);
-    const ueberfaellig = d && d < finHeute;
-    return `<tr>
-    <td><strong>${r.kunde || '–'}</strong>${r.leistung ? '<br><span class="muted">' + r.leistung + '</span>' : ''}</td>
-    <td class="num">${fmtEUR(r.betrag)}</td>
-    <td>${r.umsatzart || '–'}</td>
-    <td>${finZeige(r.faellig || r.datum)}</td>
-    <td>${ueberfaellig
+const finUeberfaellig = (r) => { const d = finDatum(r.faellig || r.datum); return !!(d && d < finHeute); };
+finTabelle('tbl-offene', F.offeneRechnungen, [
+  { label: 'Kunde / Leistung', wert: r => (r.kunde || '').toLowerCase(), zelle: finKundeZelle },
+  { label: 'Betrag', klasse: 'num', wert: r => r.betrag || 0, zelle: r => fmtEUR(r.betrag) },
+  { label: 'Umsatzart', wert: r => (r.umsatzart || '').toLowerCase(), zelle: r => r.umsatzart || '–' },
+  { label: 'Fällig', wert: r => finZeit(r.faellig || r.datum), zelle: r => finZeige(r.faellig || r.datum) },
+  { label: 'Status', wert: r => (finUeberfaellig(r) ? 0 : 1), zelle: r => finUeberfaellig(r)
       ? '<span class="badge badge-red">überfällig</span>'
-      : '<span class="badge badge-green">im Rahmen</span>'}</td>
-  </tr>`;
-  }).join('') +
-  `</tbody><tfoot><tr><td>Summe offen</td><td class="num">${fmtEUR(sumOffen)}</td><td colspan="3">${F.offeneRechnungen.length} Rechnungen</td></tr></tfoot>`;
+      : '<span class="badge badge-green">im Rahmen</span>' }
+], `<tfoot><tr><td>Summe offen</td><td class="num">${fmtEUR(sumOffen)}</td><td colspan="3">${F.offeneRechnungen.length} Rechnungen</td></tr></tfoot>`);
 
 /* Geplante Rechnungen */
 const sumGeplant = F.geplanteRechnungen.reduce((s, r) => s + r.betrag, 0);
-document.getElementById('tbl-geplante').innerHTML =
-  '<thead><tr><th>Kunde / Leistung</th><th class="num">Betrag</th><th>Umsatzart</th><th>Geplant zum</th></tr></thead><tbody>' +
-  F.geplanteRechnungen.map(r => `<tr>
-    <td><strong>${r.kunde || '–'}</strong>${r.leistung ? '<br><span class="muted">' + r.leistung + '</span>' : ''}</td>
-    <td class="num">${fmtEUR(r.betrag)}</td>
-    <td>${r.umsatzart || '–'}</td>
-    <td>${finZeige(r.geplant)}</td>
-  </tr>`).join('') +
-  `</tbody><tfoot><tr><td>Summe geplant</td><td class="num">${fmtEUR(sumGeplant)}</td><td colspan="2">${F.geplanteRechnungen.length} Positionen</td></tr></tfoot>`;
+finTabelle('tbl-geplante', F.geplanteRechnungen, [
+  { label: 'Kunde / Leistung', wert: r => (r.kunde || '').toLowerCase(), zelle: finKundeZelle },
+  { label: 'Betrag', klasse: 'num', wert: r => r.betrag || 0, zelle: r => fmtEUR(r.betrag) },
+  { label: 'Umsatzart', wert: r => (r.umsatzart || '').toLowerCase(), zelle: r => r.umsatzart || '–' },
+  { label: 'Geplant zum', wert: r => finZeit(r.geplant), zelle: r => finZeige(r.geplant) }
+], `<tfoot><tr><td>Summe geplant</td><td class="num">${fmtEUR(sumGeplant)}</td><td colspan="2">${F.geplanteRechnungen.length} Positionen</td></tr></tfoot>`);
 
 /* Bezahlte Rechnungen */
 const bezahlte = Array.isArray(F.bezahlteRechnungen) ? F.bezahlteRechnungen : [];
 const sumBezahlt = bezahlte.reduce((s, r) => s + (r.betrag || 0), 0);
-document.getElementById('tbl-bezahlte').innerHTML = bezahlte.length
-  ? '<thead><tr><th>Kunde / Leistung</th><th class="num">Betrag</th><th>Umsatzart</th><th>Bezahlt am</th><th>Status</th></tr></thead><tbody>' +
-    bezahlte.map(r => `<tr>
-      <td><strong>${r.kunde || '–'}</strong>${r.leistung ? '<br><span class="muted">' + r.leistung + '</span>' : ''}</td>
-      <td class="num">${fmtEUR(r.betrag)}</td>
-      <td>${r.umsatzart || '–'}</td>
-      <td>${finZeige(r.bezahltAm)}</td>
-      <td><span class="badge badge-green">bezahlt</span></td>
-    </tr>`).join('') +
-    `</tbody><tfoot><tr><td colspan="2">Summe bezahlt</td><td class="num">${fmtEUR(sumBezahlt)}</td><td colspan="2">${bezahlte.length} Rechnungen</td></tr></tfoot>`
-  : '<tbody><tr><td class="empty-note">Noch keine bezahlten Rechnungen. Setze eine Rechnung im Editor auf Status „bezahlt".</td></tr></tbody>';
+if (bezahlte.length) {
+  finTabelle('tbl-bezahlte', bezahlte, [
+    { label: 'Kunde / Leistung', wert: r => (r.kunde || '').toLowerCase(), zelle: finKundeZelle },
+    { label: 'Betrag', klasse: 'num', wert: r => r.betrag || 0, zelle: r => fmtEUR(r.betrag) },
+    { label: 'Umsatzart', wert: r => (r.umsatzart || '').toLowerCase(), zelle: r => r.umsatzart || '–' },
+    { label: 'Bezahlt am', wert: r => finZeit(r.bezahltAm), zelle: r => finZeige(r.bezahltAm) },
+    { label: 'Status', zelle: () => '<span class="badge badge-green">bezahlt</span>' }
+  ], `<tfoot><tr><td colspan="2">Summe bezahlt</td><td class="num">${fmtEUR(sumBezahlt)}</td><td colspan="2">${bezahlte.length} Rechnungen</td></tr></tfoot>`);
+} else {
+  document.getElementById('tbl-bezahlte').innerHTML =
+    '<tbody><tr><td class="empty-note">Noch keine bezahlten Rechnungen. Setze eine Rechnung im Editor auf Status „bezahlt".</td></tr></tbody>';
+}
 
 /* Fixkosten */
 const sumFix = F.fixkosten.filter(k => k.art === 'fix').reduce((s, k) => s + k.betrag, 0);
 const sumVar = F.fixkosten.filter(k => k.art === 'variabel').reduce((s, k) => s + k.betrag, 0);
-document.getElementById('tbl-fixkosten').innerHTML =
-  '<thead><tr><th>Posten</th><th class="num">Betrag / Monat</th><th>Fälligkeit</th><th>Art</th></tr></thead><tbody>' +
-  F.fixkosten.map(k => `<tr>
-    <td><strong>${k.posten}</strong></td>
-    <td class="num">${fmtEUR(k.betrag)}</td>
-    <td>${k.faellig}</td>
-    <td><span class="badge ${k.art === 'fix' ? 'badge-gray' : 'badge-orange'}">${k.art}</span></td>
-  </tr>`).join('') +
-  `</tbody><tfoot>
+finTabelle('tbl-fixkosten', F.fixkosten, [
+  { label: 'Posten', wert: k => (k.posten || '').toLowerCase(), zelle: k => '<strong>' + (k.posten || '–') + '</strong>' },
+  { label: 'Betrag / Monat', klasse: 'num', wert: k => k.betrag || 0, zelle: k => fmtEUR(k.betrag) },
+  { label: 'Fälligkeit', wert: k => (k.faellig || '').toLowerCase(), zelle: k => k.faellig || '–' },
+  { label: 'Art', wert: k => (k.art || '').toLowerCase(), zelle: k => '<span class="badge ' + (k.art === 'fix' ? 'badge-gray' : 'badge-orange') + '">' + (k.art || '–') + '</span>' }
+], `<tfoot>
     <tr><td>Fixkosten gesamt</td><td class="num">${fmtEUR(sumFix)}</td><td colspan="2">monatlich</td></tr>
     <tr><td>Variable Kosten (Juni)</td><td class="num">${fmtEUR(sumVar)}</td><td colspan="2">einsatzabhängig</td></tr>
     <tr><td>Gesamt anstehend (Juni)</td><td class="num">${fmtEUR(sumFix + sumVar)}</td><td colspan="2"></td></tr>
-  </tfoot>`;
+  </tfoot>`);
 
 /* Liquidität */
 /* ------------------------------------------------------------------

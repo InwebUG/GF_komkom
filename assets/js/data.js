@@ -78,6 +78,23 @@ const KK = {
       { posten: 'Raummieten extern (lt. Belegungsliste Juni)', betrag: 1850, faellig: 'variabel, n. Einsatz', art: 'variabel' },
       { posten: 'Catering / Seminarmaterial (Juni, hochger.)', betrag: 1240, faellig: 'variabel', art: 'variabel' }
     ],
+    umsatzarten: ['Ausbildung', 'Coaching', 'Inhouse', 'Material', 'Seminar'],
+    /* Ziele je Jahr und Umsatzart. Die Jahre wandern mit: gepflegt wird immer
+       das laufende und die beiden folgenden. */
+    rechnungsziele: [
+      { jahr: '2026', umsatzart: 'Ausbildung', ziel: 180000 },
+      { jahr: '2026', umsatzart: 'Seminar', ziel: 60000 },
+      { jahr: '2026', umsatzart: 'Inhouse', ziel: 45000 },
+      { jahr: '2026', umsatzart: 'Coaching', ziel: 20000 },
+      { jahr: '2026', umsatzart: 'Material', ziel: 8000 },
+      { jahr: '2027', umsatzart: 'Ausbildung', ziel: 210000 },
+      { jahr: '2027', umsatzart: 'Seminar', ziel: 72000 },
+      { jahr: '2027', umsatzart: 'Inhouse', ziel: 60000 },
+      { jahr: '2027', umsatzart: 'Coaching', ziel: 26000 },
+      { jahr: '2027', umsatzart: 'Material', ziel: 9000 },
+      { jahr: '2028', umsatzart: 'Ausbildung', ziel: 230000 },
+      { jahr: '2028', umsatzart: 'Seminar', ziel: 80000 }
+    ],
     liquiditaet: {
       kontostand: 86420,
       kontostandDatum: '06.06.2026',

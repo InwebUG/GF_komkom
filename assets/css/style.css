@@ -826,6 +826,31 @@ table.edit-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
    für „2026" nur 27 px — die letzte Ziffer war abgeschnitten. */
 .kk-monatjahr .kk-edit-select:last-child { flex: 0 0 6.4em; }
 .edit-field .edit-note { font-size: 0.78rem; color: var(--kk-gray); margin-top: 4px; line-height: 1.4; }
+.edit-hinweis { font-size: 0.85rem; color: var(--kk-gray); margin: -8px 0 12px; line-height: 1.5; max-width: 760px; }
+
+/* Umsatzart: Auswahlfeld, das sich selbst erweitern kann. Das Eingabefeld
+   tritt an die Stelle des Auswahlfelds, damit die Zeile nicht springt. */
+.kk-umsatzart { display: block; width: 100%; }
+.kk-umsatzart .kk-edit-select { width: 100%; min-width: 0; }
+.kk-edit-neu {
+  width: 100%; font-family: 'Roboto Condensed', Arial, sans-serif;
+  font-size: 0.9rem; font-weight: 700; color: var(--kk-dark);
+  padding: 7px 9px; border: 1px solid var(--kk-orange); border-radius: 7px;
+  background: var(--kk-white); outline: none;
+  box-shadow: 0 0 0 3px var(--kk-peach);
+}
+
+/* Sortierbare Spaltenköpfe: Der Pfeil ist ein um 90° gedrehtes „‹" und
+   erscheint erst, wenn nach dieser Spalte sortiert wird. */
+.kk-table th.sortierbar { cursor: pointer; user-select: none; white-space: nowrap; }
+.kk-table th.sortierbar:hover { color: var(--kk-orange-dark); }
+.kk-table th.sortierbar:focus-visible { outline: 2px solid var(--kk-orange); outline-offset: -2px; }
+.sortpfeil {
+  display: inline-block; margin-left: 6px; color: var(--kk-orange);
+  font-size: 1.05em; line-height: 1; transform-origin: 50% 50%;
+}
+.sortpfeil.auf { transform: rotate(90deg); }
+.sortpfeil.ab { transform: rotate(-90deg); }
 
 /* Hinweiszeile „aktuelles Jahr wird automatisch berechnet" im Editor */
 .edit-table tr.edit-autoyear td {
