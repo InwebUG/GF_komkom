@@ -1927,6 +1927,7 @@ function sbUebernehmen() {
 /* ---------- Prüfung ---------- */
 let pruefPlan = null;
 let pruefSchalter = {};
+let pruefLauf = 0;   // Zähler: nur die jüngste Prüfung darf die Ansicht füllen
 let pruefVorgabenText = '';
 
 /* Text für die Prüfung: aus dem Eingabefeld, bei .md/.txt auch aus der Datei.
@@ -1963,15 +1964,47 @@ async function pruefStarten() {
   kkSetBreadcrumb([{ label: 'PPTX-Generator', href: 'generator.html' }, { label: 'Storyboard geprüft' }]);
   document.getElementById('pruef-zahl').textContent = 'wird gelesen …';
   document.getElementById('pruef-folien').innerHTML =
-    '<div class="gen-loader"><div class="gen-spinner"></div><p>Der Generator liest das Storyboard – das dauert einen Moment.</p></div>';
+    '<div class="gen-loader"><div class="gen-spinner"></div><p>Der Generator liest das Storyboard – ' +
+    'bei einer großen Matrix dauert das einige Minuten. <span id="pruef-uhr"></span></p></div>';
   document.getElementById('pruef-hinweise').innerHTML = '';
   document.getElementById('btn-pruef-erzeugen').disabled = true;
 
+  // Seit 09.11.2026 im Hintergrund: starten, dann nachfragen. Der frühere
+  // Einzelaufruf scheiterte bei großen Matrizen am 140-s-Limit der Function.
+  const lauf = ++pruefLauf;
   try {
-    const resp = await kkApi('/komkom-storyboard', {
+    const start = await kkApi('/komkom-storyboard', {
       method: 'POST',
-      body: JSON.stringify({ aktion: 'pruefen', text: text })
+      body: JSON.stringify({ aktion: 'pruefen-starten', text: text })
     });
+    const t0 = Date.now();
+    let resp = null;
+    while (!resp) {
+      await new Promise(function (r) { setTimeout(r, 4000); });
+      // Neue Prüfung gestartet oder Ansicht verlassen? Dann still aufhören.
+      if (lauf !== pruefLauf || document.getElementById('view-pruefung').hidden) return;
+      if (Date.now() - t0 > 25 * 60000) throw new Error('Die Prüfung antwortet nicht mehr. Bitte noch einmal starten.');
+      const uhr = document.getElementById('pruef-uhr');
+      if (uhr) {
+        const s = Math.round((Date.now() - t0) / 1000);
+        uhr.textContent = '(' + Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') + ')';
+      }
+      let stand;
+      try {
+        stand = await kkApi('/komkom-storyboard', {
+          method: 'POST',
+          body: JSON.stringify({ aktion: 'pruefen-status', auftrag_id: start.auftrag_id })
+        });
+      } catch (e) {
+        // Ein einzelner Netzaussetzer beendet die Prüfung nicht; nur ein
+        // eindeutiges "nicht gefunden" tut es.
+        if (/nicht gefunden/i.test(e.message)) throw e;
+        continue;
+      }
+      if (stand.status === 'fertig') resp = stand;
+      else if (stand.status === 'fehler') throw new Error(stand.error || 'unbekannter Fehler');
+    }
+    if (lauf !== pruefLauf) return;
     pruefPlan = resp.plan || {};
     pruefSchalter = {};
     (pruefPlan.folien || []).forEach(function (f) {
